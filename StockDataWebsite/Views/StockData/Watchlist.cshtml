@@ -1,0 +1,37 @@
+﻿@model IEnumerable<StockDataWebsite.Models.Watchlist>
+@ViewData["Title"] = "My Watchlist";
+
+<h2>My Watchlist</h2>
+
+@if (Model != null && Model.Any())
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Stock Name</th>
+                <th>Stock Symbol</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.StockName</td>
+                    <td>@item.StockSymbol</td>
+                    <td>
+                        <!-- Add Remove from Watchlist Button -->
+                        <form asp-controller="StockData" asp-action="RemoveFromWatchlist" method="post" class="d-inline">
+                            <input type="hidden" name="watchlistId" value="@item.WatchlistId" />
+                            <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Your watchlist is empty.</p>
+}

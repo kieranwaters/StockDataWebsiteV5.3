@@ -1,0 +1,357 @@
+﻿@model StockDataWebsite.Models.StockDataViewModel
+
+@{
+    ViewData["Title"] = "Stock Data";
+}
+
+@functions {
+    public string FormatElementName(string elementName)
+    {
+        if (string.IsNullOrEmpty(elementName))
+            return elementName;
+
+        // Insert spaces before each capital letter except the first one
+        return System.Text.RegularExpressions.Regex.Replace(elementName, "(?<!^)([A-Z])", " $1");
+    }
+}
+
+<body>
+    <div class="viewport">
+        <h2>Stock Data for @Model.CompanyName (@Model.CompanySymbol)</h2>
+
+        <!-- Display Stock Price -->
+        <h4>Latest Price: @Model.StockPrice</h4>
+
+        <form id="addToWatchlistForm" asp-controller="StockData" asp-action="AddToWatchlist" method="post">
+            <input type="hidden" name="stockName" value="@Model.CompanyName" />
+            <input type="hidden" name="stockSymbol" value="@Model.CompanySymbol" />
+            <button type="submit" class="btn btn-primary">Add to Watchlist</button>
+        </form>
+
+        <div id="feedbackMessage"></div>
+
+        <!-- Financial Data Toggle Buttons -->
+        <br />
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Financial Results</h3>
+            <div>
+                <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "annual" })"
+                   class="btn btn-secondary me-2 @(Model.DataType == "annual" ? "active" : "")">
+                    Annual Data
+                </a>
+                <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "quarterly" })"
+                   class="btn btn-secondary @(Model.DataType == "quarterly" ? "active" : "")">
+                    Quarterly Data
+                </a>
+            </div>
+        </div>
+
+        <!-- Always attempt to render the table -->
+        <div class="horizontal-scroll">
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th class="text-center">  </th> <!-- Center align for the 'Element' header -->
+                        @if (Model.FinancialYears != null)
+                        {
+                            foreach (var period in Model.FinancialYears.AsEnumerable().Reverse())
+                            {
+                                <th class="text-center">@period.DisplayName.Replace("Report", "").Trim()</th> <!-- Center align for dates -->
+                            }
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Statements != null)
+                    {
+                        foreach (var statement in Model.Statements)
+                        {
+                            <tr class="table-primary">
+                                <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0) + 1)">
+                                    <strong>@statement.StatementType</strong>
+                                    @if (!string.IsNullOrEmpty(statement.ScalingLabel))
+                                    {
+                                        <span class="badge bg-info text-dark">(@statement.ScalingLabel)</span>
+                                    }
+                                </td>
+                            </tr>
+
+                            @foreach (var metric in statement.DisplayMetrics)
+                            {
+                                <tr>
+                                    <td class="align-middle text-nowrap">
+                                        @{
+                                            var formattedName = FormatElementName(metric.DisplayName);
+                                            var isLongName = formattedName.Length > 40;
+                                            var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
+                                        }
+                                        @if (isLongName)
+                                        {
+                                            <span class="element-name"
+                                                  data-full-name="@formattedName"
+                                                  data-truncated-name="@displayName"
+                                                  data-expanded="false"
+                                                  style="cursor: pointer;"
+                                                  title="Click to expand">@displayName</span>
+                                        }
+                                        else
+                                        {
+                                            @formattedName
+                                        }
+                                    </td>
+
+                                    @if (metric.Values != null && metric.Values.Any())
+                                    {
+                                        foreach (var value in metric.Values.AsEnumerable().Reverse())
+                                        {
+                                            <td class="text-center">
+                                                @if (string.IsNullOrEmpty(value) || value == "N/A")
+                                                {
+                                                    @Html.Raw("<span style='color:#ccc;'>N/A</span>")
+                                                }
+                                                else
+                                                {
+                                                    @value
+                                                }
+                                            </td>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // If no values, show placeholders
+                                        <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0))" class="text-center">N/A</td>
+                                    }
+                                </tr>
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // If Statements is null or empty, show a row indicating no data
+                        <tr><td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 1))">No statements available.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const elementNames = document.querySelectorAll(".element-name");
+            elementNames.forEach(function (element) {
+                element.addEventListener("click", function () {
+                    if (element.dataset.expanded === "true") {
+                        // Collapse to truncated name
+                        element.textContent = element.dataset.truncatedName;
+                        element.dataset.expanded = "false";
+                    } else {
+                        // Expand to full name
+                        element.textContent = element.dataset.fullName;
+                        element.dataset.expanded = "true";
+                    }
+                });
+            });
+
+            const addToWatchlistForm = document.getElementById("addToWatchlistForm");
+            if (addToWatchlistForm) {
+                addToWatchlistForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    const form = event.target;
+                    const formData = new FormData(form);
+
+                    fetch(form.action, {
+                        method: "POST",
+                        body: formData
+                    })
+                        .then(response => response.text())
+                        .then(message => {
+                            document.getElementById("feedbackMessage").innerHTML =
+                                `<div class="alert alert-info">${message}</div>`;
+                        })
+                        .catch(error => {
+                            console.error("Error adding to watchlist:", error);
+                            document.getElementById("feedbackMessage").innerHTML =
+                                `<div class="alert alert-danger">An error occurred. Please try again.</div>`;
+                        });
+                });
+            }
+        });
+    </script>
+</body>
+
+
+
+
+
+
+@* @model StockDataWebsite.Models.StockDataViewModel
+
+@{
+    ViewData["Title"] = "Stock Data";
+}
+
+@functions {
+    public string FormatElementName(string elementName)
+    {
+        if (string.IsNullOrEmpty(elementName))
+            return elementName;
+
+        // Insert spaces before each capital letter except the first one
+        return System.Text.RegularExpressions.Regex.Replace(elementName, "(?<!^)([A-Z])", " $1");
+    }
+}
+
+<body>
+    <div class="viewport">
+        <h2>Stock Data for @Model.CompanyName</h2>
+
+        <!-- Display Stock Price -->
+        <h4>Latest Price: @(ViewBag.StockPrice ?? "N/A")</h4>
+
+        <form id="addToWatchlistForm" asp-controller="StockData" asp-action="AddToWatchlist" method="post">
+            <input type="hidden" name="stockName" value="@Model.CompanyName" />
+            <input type="hidden" name="stockSymbol" value="@Model.CompanySymbol" />
+            <button type="submit" class="btn btn-primary">Add to Watchlist</button>
+        </form>
+
+        <div id="feedbackMessage"></div>
+
+        <!-- Financial Data Table -->
+        <br />
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Financial Results</h3>
+            <div>
+                <a href="@Url.Action("StockData", new { companyName = Model.CompanyName, dataType = "annual" })"
+                   class="btn btn-secondary me-2 @(ViewBag.DataType == "annual" ? "active" : "")">
+                    Annual Data
+                </a>
+                <a href="@Url.Action("StockData", new { companyName = Model.CompanyName, dataType = "quarterly" })"
+                   class="btn btn-secondary @(ViewBag.DataType == "quarterly" ? "active" : "")">
+                    Quarterly Data
+                </a>
+            </div>
+        </div>
+
+        @if (Model.FinancialYears != null && Model.FinancialYears.Any() && Model.Statements != null && Model.Statements.Any())
+        {
+            <div class="horizontal-scroll">
+                <table class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Element</th>
+                            @foreach (var period in Model.FinancialYears.AsEnumerable().Reverse())
+                            {
+                                <th>@period.DisplayName</th>
+                            }
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var statement in Model.Statements)
+                        {
+                            <!-- Statement Header -->
+                            <tr class="table-primary">
+                                <td colspan="@((Model.FinancialYears.Count) + 1)">
+                                    <strong>@statement.StatementType</strong>
+                                    @if (!string.IsNullOrEmpty(statement.ScalingLabel))
+                                    {
+                                        <span class="badge bg-info text-dark">(@statement.ScalingLabel)</span>
+                                    }
+                                </td>
+                            </tr>
+
+                            <!-- Merged Rows -->
+                            @foreach (var metric in statement.DisplayMetrics)
+                            {
+                                <tr>
+                                    <!-- Render the element name -->
+                                    <td class="align-middle text-nowrap">
+                                        @{
+                                            var formattedName = FormatElementName(metric.DisplayName);
+                                            var isLongName = formattedName.Length > 40;
+                                            var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
+                                        }
+                                        @if (isLongName)
+                                        {
+                                            <span class="element-name"
+                                                  data-full-name="@formattedName"
+                                                  data-truncated-name="@displayName"
+                                                  data-expanded="false"
+                                                  style="cursor: pointer;"
+                                                  title="Click to expand">@displayName</span>
+                                        }
+                                        else
+                                        {
+                                            @formattedName
+                                        }
+                                    </td>
+
+                                    <!-- Render merged financial values -->
+                                    @foreach (var value in metric.Values.AsEnumerable().Reverse())
+                                    {
+                                        <td class="text-center">
+                                            @if (string.IsNullOrEmpty(value) || value == "N/A")
+                                            {
+                                                @Html.Raw("<span style='color:#ccc;'>N/A</span>")
+                                            }
+                                            else
+                                            {
+                                                @value
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        }
+                    </tbody>
+
+                </table>
+            </div>
+        }
+        else
+        {
+            <p>No financial data available.</p>
+        }
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const elementNames = document.querySelectorAll(".element-name");
+            elementNames.forEach(function (element) {
+                element.addEventListener("click", function () {
+                    if (element.dataset.expanded === "true") {
+                        // Collapse to truncated name
+                        element.textContent = element.dataset.truncatedName;
+                        element.dataset.expanded = "false";
+                    } else {
+                        // Expand to full name
+                        element.textContent = element.dataset.fullName;
+                        element.dataset.expanded = "true";
+                    }
+                });
+            });
+        });
+
+        document.getElementById("addToWatchlistForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: "POST",
+                body: formData
+            })
+                .then(response => response.text())
+                .then(message => {
+                    document.getElementById("feedbackMessage").innerHTML =
+                        `<div class="alert alert-info">${message}</div>`;
+                })
+                .catch(error => {
+                    console.error("Error adding to watchlist:", error);
+                    document.getElementById("feedbackMessage").innerHTML =
+                        `<div class="alert alert-danger">An error occurred. Please try again.</div>`;
+                });
+        });
+    </script>
+</body>
+ *@

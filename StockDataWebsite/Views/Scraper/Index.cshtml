@@ -1,0 +1,235 @@
+﻿@model StockDataWebsite.Models.CompanySelection
+
+@{
+    ViewData["Title"] = "Scraper Page";
+}
+
+<h2>Select a Company for SEC Reports</h2>
+
+<!-- Display the total number of scraped and unscraped companies -->
+<h4>Total number of scraped companies in database: <span id="scrapedCompaniesCount">Loading...</span></h4>
+<h4>Total number of unscraped companies: <span id="unscrapedCompaniesCount">Loading...</span></h4>
+
+<!-- Form for scraping reports -->
+<form asp-action="Scrape" method="post">
+    <div class="form-group">
+        <label for="CompanySearch">Search by Company Name or Symbol</label>
+        <input type="text" class="form-control" id="CompanySearch" asp-for="CompanyName" placeholder="Enter company name or symbol" autocomplete="off" required />
+        <input type="hidden" asp-for="CompanySymbol" /> <!-- Hidden input for CompanySymbol -->
+        <div id="suggestions" class="list-group"></div>
+    </div>
+
+    <!-- Selected companies list -->
+    <div class="form-group">
+        <label for="selectedCompaniesList">Selected Companies</label>
+        <ul id="selectedCompaniesList" class="list-group">
+            <!-- Pre-populate the selected company if present in the Model -->
+            @if (Model != null && !string.IsNullOrEmpty(Model.CompanySymbol))
+            {
+                <li class="list-group-item" data-symbol="@Model.CompanySymbol">
+                    @Model.CompanyName (@Model.CompanySymbol)
+                </li>
+            }
+        </ul>
+    </div>
+
+    <!-- Button to remove a selected company from the list -->
+    <button type="button" id="removeCompany" class="btn btn-danger custom-margin">Remove Selected Company</button>
+
+    <button type="submit" class="btn btn-primary custom-margin">Scrape Reports</button>
+</form>
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div> <!-- Model-wide validation errors -->
+<!-- Form for fetching stock info -->
+<form asp-action="FetchStockInfo" asp-controller="StockInfo" method="post">
+    <button type="submit" class="btn btn-primary custom-margin">Update CompaniesList.dbo</button>
+</form>
+
+<!-- Button to scrape unscraped reports -->
+<button id="scrapeUnscrapedReports" class="btn btn-primary custom-margin">Scrape Unscraped Reports</button>
+
+@if (ViewBag.Result != null)
+{
+    <div class="alert alert-success mt-3">
+        @ViewBag.Result
+    </div>
+}
+
+<!-- JavaScript for dynamic dropdown suggestions, handling selection/removal, and loading counts -->
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Function to fetch and display company counts
+            function loadCompanyCounts() {
+                fetch('/api/companies/counts')
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('scrapedCompaniesCount').textContent = data.scrapedCompaniesCount;
+                        document.getElementById('unscrapedCompaniesCount').textContent = data.unscrapedCompaniesCount;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching counts:', error);
+                        document.getElementById('scrapedCompaniesCount').textContent = 'Error';
+                        document.getElementById('unscrapedCompaniesCount').textContent = 'Error';
+                    });
+            }
+
+            // Initial load of company counts
+            loadCompanyCounts();
+
+            // Handle Scrape Unscraped Reports button
+            const scrapeButton = document.getElementById('scrapeUnscrapedReports');
+            let isScraping = false;
+
+            scrapeButton.addEventListener('click', function () {
+                if (!isScraping) {
+                    isScraping = true;
+                    scrapeButton.textContent = 'Stop Scraping';
+                    scrapeButton.classList.remove('btn-primary');
+                    scrapeButton.classList.add('btn-danger');
+
+                    // Start scraping via API
+                    fetch('/Scraper/ScrapeUnscrapedReports', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // Include CSRF token if necessary
+                            'RequestVerificationToken': getAntiForgeryToken()
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Show success message dynamically
+                                const messageContainer = document.createElement('div');
+                                messageContainer.classList.add('alert', 'alert-success', 'mt-3');
+                                messageContainer.textContent = data.message;
+                                scrapeButton.parentElement.appendChild(messageContainer);
+                            } else {
+                                // Show error message dynamically
+                                const errorContainer = document.createElement('div');
+                                errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
+                                errorContainer.textContent = data.message;
+                                scrapeButton.parentElement.appendChild(errorContainer);
+                            }
+
+                            // Reset button state
+                            scrapeButton.textContent = 'Scrape Unscraped Reports';
+                            scrapeButton.classList.remove('btn-danger');
+                            scrapeButton.classList.add('btn-primary');
+                            isScraping = false;
+
+                            // Reload company counts
+                            loadCompanyCounts();
+                        })
+                        .catch(error => {
+                            console.error('Error during scraping:', error);
+
+                            // Show error message dynamically
+                            const errorContainer = document.createElement('div');
+                            errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
+                            errorContainer.textContent = 'An error occurred during scraping.';
+                            scrapeButton.parentElement.appendChild(errorContainer);
+
+                            // Reset button state
+                            scrapeButton.textContent = 'Scrape Unscraped Reports';
+                            scrapeButton.classList.remove('btn-danger');
+                            scrapeButton.classList.add('btn-primary');
+                            isScraping = false;
+                        });
+                } else {
+                    // Stop scraping logic (optional, if applicable)
+                    alert('Scraping process stopped by user.');
+                    scrapeButton.textContent = 'Scrape Unscraped Reports';
+                    scrapeButton.classList.remove('btn-danger');
+                    scrapeButton.classList.add('btn-primary');
+                    isScraping = false;
+                }
+            
+
+            // Helper function to get Anti-Forgery Token (if CSRF protection is enabled)
+            function getAntiForgeryToken() {
+                return document.querySelector('input[name="__RequestVerificationToken"]').value;
+            }
+
+            });
+
+            // Handle company search input for suggestions
+            const companySearchInput = document.getElementById('CompanySearch');
+            const suggestionsContainer = document.getElementById('suggestions');
+            const selectedCompaniesList = document.getElementById('selectedCompaniesList');
+            const hiddenCompanySymbolInput = document.querySelector('input[name="CompanySymbol"]');
+
+            companySearchInput.addEventListener('input', function () {
+                const query = this.value.trim();
+
+                if (query.length >= 2) {
+                    fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            suggestionsContainer.innerHTML = ''; // Clear previous suggestions
+
+                            if (data.length > 0) {
+                                data.forEach(company => {
+                                    const suggestionItem = document.createElement('a');
+                                    suggestionItem.classList.add('list-group-item', 'list-group-item-action');
+                                    suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
+
+                                    suggestionItem.addEventListener('click', function () {
+                                        // Clear any existing selections
+                                        selectedCompaniesList.innerHTML = '';
+
+                                        // Create and append the selected company list item
+                                        const listItem = document.createElement('li');
+                                        listItem.classList.add('list-group-item');
+                                        listItem.textContent = `${company.companyName} (${company.companySymbol})`;
+                                        listItem.dataset.symbol = company.companySymbol;
+
+                                        selectedCompaniesList.appendChild(listItem);
+
+                                        // Populate the hidden field for CompanySymbol
+                                        hiddenCompanySymbolInput.value = company.companySymbol;
+
+                                        // Clear search field and suggestions
+                                        companySearchInput.value = '';
+                                        suggestionsContainer.innerHTML = '';
+                                    });
+
+                                    suggestionsContainer.appendChild(suggestionItem);
+                                });
+                            } else {
+                                const noResultsItem = document.createElement('div');
+                                noResultsItem.classList.add('list-group-item');
+                                noResultsItem.textContent = 'No results found';
+                                suggestionsContainer.appendChild(noResultsItem);
+                            }
+                        })
+                        .catch(error => console.error('Error fetching suggestions:', error));
+                } else {
+                    suggestionsContainer.innerHTML = ''; // Clear suggestions if query is too short
+                }
+            });
+
+            // Handle removing the selected company from the list
+            const removeCompanyButton = document.getElementById('removeCompany');
+            removeCompanyButton.addEventListener('click', function () {
+                const selectedItem = document.querySelector('#selectedCompaniesList li');
+
+                if (selectedItem) {
+                    selectedCompaniesList.removeChild(selectedItem); // Remove the selected company
+                    hiddenCompanySymbolInput.value = ''; // Clear the hidden input
+                } else {
+                    alert('Please select a company to remove.');
+                }
+            });
+
+            // Optional: Reload company counts periodically (e.g., every 5 minutes)
+            setInterval(loadCompanyCounts, 300000); // 300,000 ms = 5 minutes
+        });
+    </script>
+
+    <!-- Optional: Include Bootstrap JS for better UI (if not already included) -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+            integrity="sha384-B4gt1jrGC7Jh4AgvQ3qHglx4eO4xXGqWUnBIi4IyJ0F3o+E/60B0R6tmUWb9BYC/"
+            crossorigin="anonymous"></script>
+}
