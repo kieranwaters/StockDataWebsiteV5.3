@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using StockDataWebsite.Models;
-using Nasdaq100FinancialScraper;
+using StockScraperV3;
 
 namespace StockDataWebsite.Controllers
 {
