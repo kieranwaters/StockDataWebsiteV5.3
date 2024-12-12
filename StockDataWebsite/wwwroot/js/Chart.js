@@ -1,10 +1,4 @@
-﻿// wwwroot/js/chart.js
-
-// wwwroot/js/chart.js
-
-// wwwroot/js/chart.js
-
-document.addEventListener('DOMContentLoaded', function () {
+﻿document.addEventListener('DOMContentLoaded', function () {
     const graphModal = new bootstrap.Modal(document.getElementById('graphModal'));
     const metricChartCtx = document.getElementById('metricChart').getContext('2d');
     let metricChart; // To hold the Chart instance
@@ -16,16 +10,16 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('metricChart').style.display = 'none';
 
             // Retrieve data attributes
-            const labels = JSON.parse(element.getAttribute('data-labels'));
-            const values = JSON.parse(element.getAttribute('data-values'));
+            const labels = JSON.parse(element.getAttribute('data-labels')).reverse(); // Invert labels
+            const values = JSON.parse(element.getAttribute('data-values')).reverse(); // Invert values
             const scalingLabel = element.getAttribute('data-scaling-label');
 
-            // Prepare the chart data (no scaling applied)
+            // Prepare the chart data (now in chronological order)
             const chartData = {
-                labels: labels,
+                labels: labels, // Oldest to newest
                 datasets: [{
                     label: element.getAttribute('data-metric'),
-                    data: values, // Use the already scaled values
+                    data: values, // Corresponding values
                     borderColor: 'rgba(75, 192, 192, 1)',
                     backgroundColor: 'rgba(75, 192, 192, 0.2)',
                     fill: true,
@@ -63,13 +57,24 @@ document.addEventListener('DOMContentLoaded', function () {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: `Amount (${scalingLabel})` // Incorporate the scaling label here
+                            text: `Amount (${scalingLabel})`
+                        },
+                        ticks: {
+                            callback: function (value) {
+                                return value.toLocaleString(); // Adds thousand separators
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(200, 200, 200, 0.2)'
                         }
                     },
                     x: {
                         title: {
                             display: true,
                             text: 'Period'
+                        },
+                        grid: {
+                            color: 'rgba(200, 200, 200, 0.2)'
                         }
                     }
                 }
