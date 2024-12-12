@@ -31,7 +31,24 @@ namespace StockDataWebsite.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> ContinueScrapingUnscrapedReports()
+        {
+            try
+            {
+                
+                // Start the scraping process asynchronously
+                await StockScraperV3.URL.ContinueScrapingUnscrapedCompaniesAsync();
 
+                Console.WriteLine("[INFO] Scraping process has started.");
+                return Json(new { success = true, message = "Scraping has started!" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] {ex.Message}");
+                return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
+        }
         [HttpPost]
         public async Task<IActionResult> Scrape(CompanySelection company)
         {

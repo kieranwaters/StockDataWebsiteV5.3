@@ -45,8 +45,14 @@
     <button type="submit" class="btn btn-primary custom-margin">Update CompaniesList.dbo</button>
 </form>
 
-<!-- Button to scrape unscraped reports -->
-<button id="scrapeUnscrapedReports" class="btn btn-primary custom-margin">Scrape Unscraped Reports</button>
+<!-- Buttons for scraping reports -->
+<div class="mt-3">
+    <!-- Button to scrape unscraped reports -->
+    <button id="scrapeUnscrapedReports" class="btn btn-primary custom-margin">Scrape Unscraped Reports</button>
+
+    <!-- New Button: Continue Scraping Reports -->
+    <button id="continueScrapingReports" class="btn btn-secondary custom-margin">Continue Scraping Reports</button>
+</div>
 
 @if (ViewBag.Result != null)
 {
@@ -145,14 +151,83 @@
                     scrapeButton.classList.add('btn-primary');
                     isScraping = false;
                 }
-            
+            });
+
+            // Handle Continue Scraping Reports button
+            const continueScrapeButton = document.getElementById('continueScrapingReports');
+            let isContinuingScraping = false;
+
+            continueScrapeButton.addEventListener('click', function () {
+                if (!isContinuingScraping) {
+                    isContinuingScraping = true;
+                    continueScrapeButton.textContent = 'Pause Scraping';
+                    continueScrapeButton.classList.remove('btn-secondary');
+                    continueScrapeButton.classList.add('btn-warning');
+
+                    // Continue scraping via API
+                    fetch('/Scraper/ContinueScrapingUnscrapedReports', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // Include CSRF token if necessary
+                            'RequestVerificationToken': getAntiForgeryToken()
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Show success message dynamically
+                                const messageContainer = document.createElement('div');
+                                messageContainer.classList.add('alert', 'alert-success', 'mt-3');
+                                messageContainer.textContent = data.message;
+                                continueScrapeButton.parentElement.appendChild(messageContainer);
+                            } else {
+                                // Show error message dynamically
+                                const errorContainer = document.createElement('div');
+                                errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
+                                errorContainer.textContent = data.message;
+                                continueScrapeButton.parentElement.appendChild(errorContainer);
+                            }
+
+                            // Reset button state
+                            continueScrapeButton.textContent = 'Continue Scraping Reports';
+                            continueScrapeButton.classList.remove('btn-warning');
+                            continueScrapeButton.classList.add('btn-secondary');
+                            isContinuingScraping = false;
+
+                            // Reload company counts
+                            loadCompanyCounts();
+                        })
+                        .catch(error => {
+                            console.error('Error during continuing scraping:', error);
+
+                            // Show error message dynamically
+                            const errorContainer = document.createElement('div');
+                            errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
+                            errorContainer.textContent = 'An error occurred during continuing scraping.';
+                            continueScrapeButton.parentElement.appendChild(errorContainer);
+
+                            // Reset button state
+                            continueScrapeButton.textContent = 'Continue Scraping Reports';
+                            continueScrapeButton.classList.remove('btn-warning');
+                            continueScrapeButton.classList.add('btn-secondary');
+                            isContinuingScraping = false;
+                        });
+                } else {
+                    // Pause continuing scraping logic (optional, if applicable)
+                    alert('Continuing scraping process paused by user.');
+                    continueScrapeButton.textContent = 'Continue Scraping Reports';
+                    continueScrapeButton.classList.remove('btn-warning');
+                    continueScrapeButton.classList.add('btn-secondary');
+                    isContinuingScraping = false;
+                }
+            });
 
             // Helper function to get Anti-Forgery Token (if CSRF protection is enabled)
             function getAntiForgeryToken() {
-                return document.querySelector('input[name="__RequestVerificationToken"]').value;
+                const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+                return tokenElement ? tokenElement.value : '';
             }
-
-            });
 
             // Handle company search input for suggestions
             const companySearchInput = document.getElementById('CompanySearch');
