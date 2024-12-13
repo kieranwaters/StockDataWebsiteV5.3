@@ -2,367 +2,6 @@
 @model StockDataWebsite.Models.StockDataViewModel
 
 @{
-    ViewData["Title"] = "Scraper Page";
-}
-
-<h2>Select a Company for SEC Reports</h2>
-
-<!-- Display the total number of scraped and unscraped companies -->
-<h4>Total number of scraped companies in database: <span id="scrapedCompaniesCount">Loading...</span></h4>
-<h4>Total number of unscraped companies: <span id="unscrapedCompaniesCount">Loading...</span></h4>
-
-<!-- Form for scraping reports -->
-<form asp-action="Scrape" method="post">
-    <div class="form-group">
-        <label for="CompanySearch">Search by Company Name or Symbol</label>
-        <input type="text" class="form-control" id="CompanySearch" asp-for="CompanyName" placeholder="Enter company name or symbol" autocomplete="off" required />
-        <input type="hidden" asp-for="CompanySymbol" /> <!-- Hidden input for CompanySymbol -->
-        <div id="suggestions" class="list-group"></div>
-    </div>
-
-    <!-- Selected companies list -->
-    <div class="form-group">
-        <label for="selectedCompaniesList">Selected Companies</label>
-        <ul id="selectedCompaniesList" class="list-group">
-            <!-- Pre-populate the selected company if present in the Model -->
-            @if (Model != null && !string.IsNullOrEmpty(Model.CompanySymbol))
-            {
-                <li class="list-group-item" data-symbol="@Model.CompanySymbol">
-                    @Model.CompanyName (@Model.CompanySymbol)
-                </li>
-            }
-        </ul>
-    </div>
-
-    <!-- Button to remove a selected company from the list -->
-    <button type="button" id="removeCompany" class="btn btn-danger custom-margin">Remove Selected Company</button>
-
-    <button type="submit" class="btn btn-primary custom-margin">Scrape Reports</button>
-</form>
-
-<div asp-validation-summary="ModelOnly" class="text-danger"></div> <!-- Model-wide validation errors -->
-<!-- Form for fetching stock info -->
-<form asp-action="FetchStockInfo" asp-controller="StockInfo" method="post">
-    <button type="submit" class="btn btn-primary custom-margin">Update CompaniesList.dbo</button>
-</form>
-
-<!-- Buttons for scraping reports -->
-<div class="mt-3">
-    <!-- Button to scrape unscraped reports -->
-    <button id="scrapeUnscrapedReports" class="btn btn-primary custom-margin">Scrape Unscraped Reports</button>
-
-    <!-- New Button: Continue Scraping Reports -->
-    <button id="continueScrapingReports" class="btn btn-secondary custom-margin">Continue Scraping Reports</button>
-
-    <!-- New Button: Parse and Save XBRL Data -->
-    <button id="parseXbrlBtn" class="btn btn-success custom-margin">Parse and Save XBRL Data</button>
-    <div id="parseXbrlResult" class="mt-2"></div>
-    <div id="parseXbrlLoading" class="spinner-border text-primary mt-2" role="status" style="display: none;">
-        <span class="sr-only">Loading...</span>
-    </div>
-</div>
-
-@if (ViewBag.Result != null)
-{
-    <div class="alert alert-success mt-3">
-        @ViewBag.Result
-    </div>
-}
-
-<!-- JavaScript for dynamic dropdown suggestions, handling selection/removal, and loading counts -->
-@section Scripts {
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Function to fetch and display company counts
-            function loadCompanyCounts() {
-                fetch('/api/companies/counts')
-                    .then(response => response.json())
-                    .then(data => {
-                        document.getElementById('scrapedCompaniesCount').textContent = data.scrapedCompaniesCount;
-                        document.getElementById('unscrapedCompaniesCount').textContent = data.unscrapedCompaniesCount;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching counts:', error);
-                        document.getElementById('scrapedCompaniesCount').textContent = 'Error';
-                        document.getElementById('unscrapedCompaniesCount').textContent = 'Error';
-                    });
-            }
-
-            // Initial load of company counts
-            loadCompanyCounts();
-
-            // Handle Scrape Unscraped Reports button
-            const scrapeButton = document.getElementById('scrapeUnscrapedReports');
-            let isScraping = false;
-
-            scrapeButton.addEventListener('click', function () {
-                if (!isScraping) {
-                    isScraping = true;
-                    scrapeButton.textContent = 'Stop Scraping';
-                    scrapeButton.classList.remove('btn-primary');
-                    scrapeButton.classList.add('btn-danger');
-
-                    // Start scraping via API
-                    fetch('/Scraper/ScrapeUnscrapedReports', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            // Include CSRF token if necessary
-                            'RequestVerificationToken': getAntiForgeryToken()
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Show success message dynamically
-                                const messageContainer = document.createElement('div');
-                                messageContainer.classList.add('alert', 'alert-success', 'mt-3');
-                                messageContainer.textContent = data.message;
-                                scrapeButton.parentElement.appendChild(messageContainer);
-                            } else {
-                                // Show error message dynamically
-                                const errorContainer = document.createElement('div');
-                                errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                                errorContainer.textContent = data.message;
-                                scrapeButton.parentElement.appendChild(errorContainer);
-                            }
-
-                            // Reset button state
-                            scrapeButton.textContent = 'Scrape Unscraped Reports';
-                            scrapeButton.classList.remove('btn-danger');
-                            scrapeButton.classList.add('btn-primary');
-                            isScraping = false;
-
-                            // Reload company counts
-                            loadCompanyCounts();
-                        })
-                        .catch(error => {
-                            console.error('Error during scraping:', error);
-
-                            // Show error message dynamically
-                            const errorContainer = document.createElement('div');
-                            errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                            errorContainer.textContent = 'An error occurred during scraping.';
-                            scrapeButton.parentElement.appendChild(errorContainer);
-
-                            // Reset button state
-                            scrapeButton.textContent = 'Scrape Unscraped Reports';
-                            scrapeButton.classList.remove('btn-danger');
-                            scrapeButton.classList.add('btn-primary');
-                            isScraping = false;
-                        });
-                } else {
-                    // Stop scraping logic (optional, if applicable)
-                    alert('Scraping process stopped by user.');
-                    scrapeButton.textContent = 'Scrape Unscraped Reports';
-                    scrapeButton.classList.remove('btn-danger');
-                    scrapeButton.classList.add('btn-primary');
-                    isScraping = false;
-                }
-            });
-
-            // Handle Continue Scraping Reports button
-            const continueScrapeButton = document.getElementById('continueScrapingReports');
-            let isContinuingScraping = false;
-
-            continueScrapeButton.addEventListener('click', function () {
-                if (!isContinuingScraping) {
-                    isContinuingScraping = true;
-                    continueScrapeButton.textContent = 'Pause Scraping';
-                    continueScrapeButton.classList.remove('btn-secondary');
-                    continueScrapeButton.classList.add('btn-warning');
-
-                    // Continue scraping via API
-                    fetch('/Scraper/ContinueScrapingUnscrapedReports', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            // Include CSRF token if necessary
-                            'RequestVerificationToken': getAntiForgeryToken()
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                // Show success message dynamically
-                                const messageContainer = document.createElement('div');
-                                messageContainer.classList.add('alert', 'alert-success', 'mt-3');
-                                messageContainer.textContent = data.message;
-                                continueScrapeButton.parentElement.appendChild(messageContainer);
-                            } else {
-                                // Show error message dynamically
-                                const errorContainer = document.createElement('div');
-                                errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                                errorContainer.textContent = data.message;
-                                continueScrapeButton.parentElement.appendChild(errorContainer);
-                            }
-
-                            // Reset button state
-                            continueScrapeButton.textContent = 'Continue Scraping Reports';
-                            continueScrapeButton.classList.remove('btn-warning');
-                            continueScrapeButton.classList.add('btn-secondary');
-                            isContinuingScraping = false;
-
-                            // Reload company counts
-                            loadCompanyCounts();
-                        })
-                        .catch(error => {
-                            console.error('Error during continuing scraping:', error);
-
-                            // Show error message dynamically
-                            const errorContainer = document.createElement('div');
-                            errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                            errorContainer.textContent = 'An error occurred during continuing scraping.';
-                            continueScrapeButton.parentElement.appendChild(errorContainer);
-
-                            // Reset button state
-                            continueScrapeButton.textContent = 'Continue Scraping Reports';
-                            continueScrapeButton.classList.remove('btn-warning');
-                            continueScrapeButton.classList.add('btn-secondary');
-                            isContinuingScraping = false;
-                        });
-                } else {
-                    // Pause continuing scraping logic (optional, if applicable)
-                    alert('Continuing scraping process paused by user.');
-                    continueScrapeButton.textContent = 'Continue Scraping Reports';
-                    continueScrapeButton.classList.remove('btn-warning');
-                    continueScrapeButton.classList.add('btn-secondary');
-                    isContinuingScraping = false;
-                }
-            });
-
-            // Handle Parse and Save XBRL Data button
-            const parseXbrlBtn = document.getElementById('parseXbrlBtn');
-            const parseXbrlResult = document.getElementById('parseXbrlResult');
-            const parseXbrlLoading = document.getElementById('parseXbrlLoading');
-
-            parseXbrlBtn.addEventListener('click', function () {
-                const button = this;
-
-                // Disable the button and show loading spinner
-                button.disabled = true;
-                parseXbrlLoading.style.display = 'inline-block';
-                parseXbrlResult.innerHTML = 'Processing...';
-
-                fetch('/Scraper/ParseAndSaveXbrlData', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'RequestVerificationToken': getAntiForgeryToken()
-                    },
-                    body: JSON.stringify({})
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            parseXbrlResult.innerHTML = `<span class="text-success">${data.message}</span>`;
-                        } else {
-                            parseXbrlResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        parseXbrlResult.innerHTML = '<span class="text-danger">An unexpected error occurred.</span>';
-                    })
-                    .finally(() => {
-                        // Re-enable the button and hide loading spinner
-                        button.disabled = false;
-                        parseXbrlLoading.style.display = 'none';
-                    });
-            });
-
-            // Helper function to get Anti-Forgery Token (if CSRF protection is enabled)
-            function getAntiForgeryToken() {
-                const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
-                return tokenElement ? tokenElement.value : '';
-            }
-
-            // Handle company search input for suggestions
-            const companySearchInput = document.getElementById('CompanySearch');
-            const suggestionsContainer = document.getElementById('suggestions');
-            const selectedCompaniesList = document.getElementById('selectedCompaniesList');
-            const hiddenCompanySymbolInput = document.querySelector('input[name="CompanySymbol"]');
-
-            companySearchInput.addEventListener('input', function () {
-                const query = this.value.trim();
-
-                if (query.length >= 2) {
-                    fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            suggestionsContainer.innerHTML = ''; // Clear previous suggestions
-
-                            if (data.length > 0) {
-                                data.forEach(company => {
-                                    const suggestionItem = document.createElement('a');
-                                    suggestionItem.classList.add('list-group-item', 'list-group-item-action');
-                                    suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
-
-                                    suggestionItem.addEventListener('click', function () {
-                                        // Clear any existing selections
-                                        selectedCompaniesList.innerHTML = '';
-
-                                        // Create and append the selected company list item
-                                        const listItem = document.createElement('li');
-                                        listItem.classList.add('list-group-item');
-                                        listItem.textContent = `${company.companyName} (${company.companySymbol})`;
-                                        listItem.dataset.symbol = company.companySymbol;
-
-                                        selectedCompaniesList.appendChild(listItem);
-
-                                        // Populate the hidden field for CompanySymbol
-                                        hiddenCompanySymbolInput.value = company.companySymbol;
-
-                                        // Clear search field and suggestions
-                                        companySearchInput.value = '';
-                                        suggestionsContainer.innerHTML = '';
-                                    });
-
-                                    suggestionsContainer.appendChild(suggestionItem);
-                                });
-                            } else {
-                                const noResultsItem = document.createElement('div');
-                                noResultsItem.classList.add('list-group-item');
-                                noResultsItem.textContent = 'No results found';
-                                suggestionsContainer.appendChild(noResultsItem);
-                            }
-                        })
-                        .catch(error => console.error('Error fetching suggestions:', error));
-                } else {
-                    suggestionsContainer.innerHTML = ''; // Clear suggestions if query is too short
-                }
-            });
-
-            // Handle removing the selected company from the list
-            const removeCompanyButton = document.getElementById('removeCompany');
-            removeCompanyButton.addEventListener('click', function () {
-                const selectedItem = document.querySelector('#selectedCompaniesList li');
-
-                if (selectedItem) {
-                    selectedCompaniesList.removeChild(selectedItem); // Remove the selected company
-                    hiddenCompanySymbolInput.value = ''; // Clear the hidden input
-                } else {
-                    alert('Please select a company to remove.');
-                }
-            });
-
-            // Optional: Reload company counts periodically (e.g., every 5 minutes)
-            setInterval(loadCompanyCounts, 300000); // 300,000 ms = 5 minutes
-        });
-    </script>
-
-    <!-- Include Bootstrap JS for better UI (if not already included) -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"
-            integrity="sha384-LtrjvnR4Twt/qOuYx+vQy8haBBN8d1Y5lrogr4+17F6Dz8uK6rfsQbLX7hg/KjMG"
-            crossorigin="anonymous"></script>
-}
-
-
-
-@* @using Newtonsoft.Json
-@model StockDataWebsite.Models.StockDataViewModel
-
-@{
     ViewData["Title"] = "Stock Data";
 }
 
@@ -403,114 +42,209 @@
                     Annual Data
                 </a>
                 <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "quarterly" })"
-                   class="btn btn-secondary @(Model.DataType == "quarterly" ? "active" : "")">
+                   class="btn btn-secondary me-2 @(Model.DataType == "quarterly" ? "active" : "")">
                     Quarterly Data
+                </a>
+                <!-- New Enhanced Financial Data Button -->
+                <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "enhanced" })"
+                   class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
+                    Enhanced Financial Data
                 </a>
             </div>
         </div>
 
-        <!-- Always attempt to render the table -->
+        <!-- Financial Data Table -->
         <div class="horizontal-scroll">
             <table class="table table-striped table-bordered">
                 <thead>
                     <tr>
-                        <th class="text-center">  </th> <!-- Center align for the 'Element' header -->
-                        @if (Model.FinancialYears != null)
+                        @if (Model.DataType == "enhanced")
+                        {
+                            <th class="text-center">Element</th> <!-- Header for Element Names -->
+                        }
+                        else
+                        {
+                            <th class="text-center"> </th> <!-- Empty header for Statements -->
+                        }
+
+                        @if (Model.FinancialYears != null && Model.FinancialYears.Any())
                         {
                             foreach (var period in Model.FinancialYears.AsEnumerable().Reverse())
                             {
-                                <th class="text-center">@period.DisplayName.Replace("Report", "").Trim()</th> <!-- Center align for dates -->
+                                <th class="text-center">@period.DisplayName.Replace("Report", "").Trim()</th> <!-- Headers for Periods -->
                             }
+                        }
+                        else
+                        {
+                            <th class="text-center">Period</th> <!-- Default Header if No FinancialYears -->
                         }
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.Statements != null)
+                    @if (Model.Statements != null && Model.Statements.Any())
                     {
-                        foreach (var statement in Model.Statements)
+                        if (Model.DataType == "enhanced")
                         {
-                            <tr class="table-primary">
-                                <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0) + 1)">
-                                    <strong>@statement.StatementType</strong>
-                                    @if (!string.IsNullOrEmpty(statement.ScalingLabel))
-                                    {
-                                        <span class="badge bg-info text-dark">(@statement.ScalingLabel)</span>
-                                    }
-                                </td>
-                            </tr>
-
-                            @foreach (var metric in statement.DisplayMetrics)
+                            <!-- Enhanced Financial Data: Flat Table Without Statements -->
+                            @foreach (var statement in Model.Statements)
                             {
-                                <tr>
-                                    <td class="align-middle text-nowrap">
-                                        @{
-                                            var formattedName = FormatElementName(metric.DisplayName);
-                                            var isLongName = formattedName.Length > 40;
-                                            var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
-                                            // Prepare historical values for the metric
-                                            var historicalValues = metric.Values != null && metric.Values.Any()
-                                                ? metric.Values.AsEnumerable().Reverse().ToList()
-                                                : new List<string> { };
-                                            // Convert string values to decimal where possible
-                                            var numericValues = historicalValues.Select(v => decimal.TryParse(v, out var num) ? num : (decimal?)null).ToList();
-                                            // Prepare labels based on FinancialYears
-                                            var labels = Model.FinancialYears != null
-                                                ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
-                                                : new List<string>();
-                                        }
-                                        @if (isLongName)
+                                foreach (var metric in statement.DisplayMetrics)
+                                {
+                                    <tr>
+                                        <td class="align-middle text-nowrap">
+                                            @{
+                                                var formattedName = FormatElementName(metric.DisplayName);
+                                                var isLongName = formattedName.Length > 40;
+                                                var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
+                                            }
+                                            @if (isLongName)
+                                            {
+                                                <span class="element-name text-primary"
+                                                      data-full-name="@formattedName"
+                                                      data-truncated-name="@displayName"
+                                                      data-expanded="false"
+                                                      data-metric="@metric.DisplayName"
+                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
+                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
+                                                      style="cursor: pointer;"
+                                                      title="Click to view graph">@displayName</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="element-name text-primary"
+                                                      data-metric="@metric.DisplayName"
+                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
+                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
+                                                      style="cursor: pointer;"
+                                                      title="Click to view historical data">@formattedName</span>
+                                            }
+                                        </td>
+
+                                        @if (metric.Values != null && metric.Values.Any())
                                         {
-                                            <span class="element-name text-primary"
-                                                  data-full-name="@formattedName"
-                                                  data-truncated-name="@displayName"
-                                                  data-expanded="false"
-                                                  data-scaling-label="@statement.ScalingLabel"
-                                                  data-metric="@metric.DisplayName"
-                                                  data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
-                                                  data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
-                                                  style="cursor: pointer;"
-                                                  title="Click to view graph">@displayName</span>
+                                            foreach (var value in metric.Values.AsEnumerable().Reverse())
+                                            {
+                                                <td class="text-center">
+                                                    @if (string.IsNullOrEmpty(value) || value == "N/A")
+                                                    {
+                                                        @Html.Raw("<span style='color:#ccc;'>N/A</span>")
+                                                    }
+                                                    else
+                                                    {
+                                                        @value
+                                                    }
+                                                </td>
+                                            }
                                         }
                                         else
                                         {
-                                            <span class="element-name text-primary"
-                                                  data-metric="@metric.DisplayName"
-                                                  data-scaling-label="@statement.ScalingLabel"
-                                                  data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
-                                                  data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
-                                                  style="cursor: pointer;"
-                                                  title="Click to view historical data">@formattedName</span>
+                                            <!-- Placeholder for Missing Values -->
+                                            <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0))" class="text-center">N/A</td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <!-- Standard Financial Data: Grouped by Statements -->
+                            foreach (var statement in Model.Statements)
+                            {
+                                <tr class="table-primary">
+                                    <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0) + 1)">
+                                        <strong>@statement.StatementType</strong>
+                                        @if (!string.IsNullOrEmpty(statement.ScalingLabel))
+                                        {
+                                            <span class="badge bg-info text-dark">(@statement.ScalingLabel)</span>
                                         }
                                     </td>
+                                </tr>
 
-                                    @if (metric.Values != null && metric.Values.Any())
+                                @if (statement.DisplayMetrics != null && statement.DisplayMetrics.Any())
+                                {
+                                    foreach (var metric in statement.DisplayMetrics)
                                     {
-                                        foreach (var value in metric.Values.AsEnumerable().Reverse())
-                                        {
-                                            <td class="text-center">
-                                                @if (string.IsNullOrEmpty(value) || value == "N/A")
+                                        <tr>
+                                            <td class="align-middle text-nowrap">
+                                                @{
+                                                    var formattedName = FormatElementName(metric.DisplayName);
+                                                    var isLongName = formattedName.Length > 40;
+                                                    var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
+                                                    // Prepare historical values for the metric
+                                                    var historicalValues = metric.Values != null && metric.Values.Any()
+                                                    ? metric.Values.AsEnumerable().Reverse().ToList()
+                                                    : new List<string> { };
+                                                    // Convert string values to decimal where possible
+                                                    var numericValues = historicalValues.Select(v => decimal.TryParse(v, out var num) ? num : (decimal?)null).ToList();
+                                                    // Prepare labels based on FinancialYears
+                                                    var labels = Model.FinancialYears != null
+                                                    ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
+                                                    : new List<string>();
+                                                }
+                                                @if (isLongName)
                                                 {
-                                                    @Html.Raw("<span style='color:#ccc;'>N/A</span>")
+                                                    <span class="element-name text-primary"
+                                                          data-full-name="@formattedName"
+                                                          data-truncated-name="@displayName"
+                                                          data-expanded="false"
+                                                          data-scaling-label="@statement.ScalingLabel"
+                                                          data-metric="@metric.DisplayName"
+                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
+                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
+                                                          style="cursor: pointer;"
+                                                          title="Click to view graph">@displayName</span>
                                                 }
                                                 else
                                                 {
-                                                    @value
+                                                    <span class="element-name text-primary"
+                                                          data-metric="@metric.DisplayName"
+                                                          data-scaling-label="@statement.ScalingLabel"
+                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
+                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
+                                                          style="cursor: pointer;"
+                                                          title="Click to view historical data">@formattedName</span>
                                                 }
                                             </td>
-                                        }
+
+                                            @if (metric.Values != null && metric.Values.Any())
+                                            {
+                                                foreach (var value in metric.Values.AsEnumerable().Reverse())
+                                                {
+                                                    <td class="text-center">
+                                                        @if (string.IsNullOrEmpty(value) || value == "N/A")
+                                                        {
+                                                            @Html.Raw("<span style='color:#ccc;'>N/A</span>")
+                                                        }
+                                                        else
+                                                        {
+                                                            @value
+                                                        }
+                                                    </td>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <!-- Placeholder for Missing Values -->
+                                                <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0))" class="text-center">N/A</td>
+                                            }
+                                        </tr>
                                     }
-                                    else
-                                    {
-                                        // If no values, show placeholders
-                                        <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0))" class="text-center">N/A</td>
-                                    }
-                                </tr>
+                                }
+                                else
+                                {
+                                    <!-- Placeholder for No Metrics in Statement -->
+                                    <tr>
+                                        <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0) + 1)" class="text-center text-muted">
+                                            No financial metrics available for this statement.
+                                        </td>
+                                    </tr>
+                                }
                             }
                         }
                     }
                     else
                     {
-                        // If Statements is null or empty, show a row indicating no data
+                        <!-- Placeholder for No Statements Available -->
                         <tr><td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 1))">No statements available.</td></tr>
                     }
                 </tbody>
@@ -539,17 +273,11 @@
         </div>
     </div>
 
-   @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+SR1YtgHj4q6G5u0oJQ0Jef1BiCh/"
-            crossorigin="anonymous"></script>
-    <script src="~/js/chart.js"></script>
-}
-
-
-</body> *@
-
-
-
-
+    @section Scripts {
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+                integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+SR1YtgHj4q6G5u0oJQ0Jef1BiCh/"
+                crossorigin="anonymous"></script>
+        <script src="~/js/chart.js"></script>
+    }
+</body>

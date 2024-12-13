@@ -7,5 +7,7 @@
         public List<DisplayMetricRow1> DisplayMetrics { get; set; }
         public string ScalingLabel { get; set; } //
     }
+    
+
 
 }

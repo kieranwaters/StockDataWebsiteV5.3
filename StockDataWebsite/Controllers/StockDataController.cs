@@ -4,6 +4,7 @@ using StockDataWebsite.Models;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 namespace StockDataWebsite.Controllers
 {    
     public class StockDataController : Controller
@@ -52,30 +53,77 @@ namespace StockDataWebsite.Controllers
 
                 if (dataType == "enhanced")
                 {
-                    // ENHANCED DATA CHANGES:
-                    // Build a dictionary of non-HTML elements
+                    // Existing code:
                     var financialDataRecordsLookup = financialDataRecords.ToDictionary(fd => $"{fd.Year.Value}-{fd.Quarter}", fd => fd);
                     var xbrlElements = ExtractXbrlElements(financialDataRecordsLookup, recentReportPairs);
 
                     // Convert xbrlElements dictionary into Statements with no scaling, no grouping
-                    // We'll create a single "Enhanced Data" statement
                     var displayMetrics = xbrlElements.Select(kvp => new DisplayMetricRow1
                     {
-                        DisplayName = kvp.Key, // Element name
+                        DisplayName = kvp.Key, // Element name (RawElementName)
                         Values = kvp.Value.ToList(),
                         IsMergedRow = false,
                         RowSpan = 1
                     }).ToList();
 
+                    // NEW CODE STARTS HERE: Use ADO.NET for direct SQL query
+                    // Extract all raw element names
+                    var rawElementNames = displayMetrics.Select(dm => dm.DisplayName).Distinct().ToList();
+
+                    // Build a SQL IN clause for the raw element names
+                    var parameterizedNames = string.Join(",", rawElementNames.Select((_, index) => $"@p{index}"));
+                    var sqlQuery = $"SELECT RawElementName, ElementLabel FROM XBRLDataTypes WHERE RawElementName IN ({parameterizedNames})";
+
+                    var labelMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                    using (var connection = _context.Database.GetDbConnection())
+                    {
+                        connection.Open();
+
+                        using (var command = connection.CreateCommand())
+                        {
+                            command.CommandText = sqlQuery;
+
+                            // Add parameters to prevent SQL injection
+                            for (int i = 0; i < rawElementNames.Count; i++)
+                            {
+                                var parameter = command.CreateParameter();
+                                parameter.ParameterName = $"@p{i}";
+                                parameter.Value = rawElementNames[i];
+                                command.Parameters.Add(parameter);
+                            }
+
+                            using (var reader = command.ExecuteReader())
+                            {
+                                while (reader.Read())
+                                {
+                                    var rawName = reader.GetString(0);
+                                    var label = reader.IsDBNull(1) ? rawName : reader.GetString(1);
+                                    labelMap[rawName] = label;
+                                }
+                            }
+                        }
+                    }
+
+                    // Update DisplayName with ElementLabel if exists
+                    foreach (var metric in displayMetrics)
+                    {
+                        if (labelMap.TryGetValue(metric.DisplayName, out var label))
+                        {
+                            metric.DisplayName = label; // Replace the raw name with the human-readable label
+                        }
+                    }
+                    // NEW CODE ENDS HERE
+
                     orderedStatements = new List<StatementFinancialData>
-            {
-                new StatementFinancialData
-                {
-                    StatementType = "Enhanced Data",
-                    DisplayMetrics = displayMetrics,
-                    ScalingLabel = "" // No scaling label
-                }
-            };
+    {
+        new StatementFinancialData
+        {
+            StatementType = "Enhanced Data",
+            DisplayMetrics = displayMetrics,
+            ScalingLabel = "" // No scaling label
+        }
+    };
                 }
                 else
                 {
@@ -221,69 +269,6 @@ namespace StockDataWebsite.Controllers
             }
             return "General";
         }
-        //public async Task<IActionResult> StockData(string companyName, string dataType = "annual")
-        //{
-        //    try
-        //    {
-        //        // Validate and sanitize dataType
-        //        dataType = ValidateDataType(dataType);
-
-        //        // Retrieve company details based on companyName
-        //        var (companyId, companySymbol) = GetCompanyDetails(companyName);
-        //        if (companyId == 0)
-        //        {
-        //            _logger.LogWarning($"StockData: Company not found for Name = {companyName}");
-        //            return BadRequest("Company not found.");
-        //        }
-
-        //        // Fetch recent reports and financial data
-        //        var (recentReportPairs, recentReportKeys, financialDataRecords, recentReports) = FetchRecentReportsAndData(companyId, dataType);
-        //        if (!financialDataRecords.Any())
-        //        {
-        //            _logger.LogWarning($"StockData: No financial records found for CompanyID = {companyId}");
-        //            return BadRequest("No financial records found.");
-        //        }
-
-        //        // Create a lookup for financial data records
-        //        var financialDataRecordsLookup = financialDataRecords.ToDictionary(fd => $"{fd.Year.Value}-{fd.Quarter}", fd => fd);
-
-        //        // Initialize and populate financial data elements
-        //        var financialDataElements = InitializeFinancialDataElements(financialDataRecords);
-        //        PopulateFinancialDataElements(financialDataElements, financialDataRecordsLookup, recentReportPairs);
-
-        //        // Group financial data by statement and create ordered statements
-        //        var statementsDict = GroupFinancialDataByStatement(financialDataElements);
-        //        var orderedStatements = CreateOrderedStatements(statementsDict, recentReports);
-
-        //        // Fetch the stock price asynchronously
-        //        var stockPrice = await _twelveDataService.GetStockPriceAsync(companySymbol);
-        //        var formattedStockPrice = stockPrice.HasValue ? $"${stockPrice.Value:F2}" : "N/A";
-
-        //        // Construct the view model with all necessary data
-        //        var model = new StockDataViewModel
-        //        {
-        //            CompanyName = companyName,
-        //            CompanySymbol = companySymbol,
-        //            FinancialYears = CreateReportPeriods(dataType, recentReportPairs),
-        //            Statements = orderedStatements,
-        //            StockPrice = formattedStockPrice,
-        //            DataType = dataType
-        //        };
-
-        //        // Log successful data retrieval
-        //        _logger.LogInformation($"StockData: Successfully retrieved data for CompanyID = {companyId}, Symbol = {companySymbol}");
-
-        //        return View(model);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        // Log the exception with detailed information
-        //        _logger.LogError(ex, $"StockData: An exception occurred while processing data for CompanyName = {companyName}, DataType = {dataType}");
-
-        //        // Optionally, you can pass the error message to the view or handle it as needed
-        //        return StatusCode(500, "An error occurred while processing the data.");
-        //    }
-        //}
 
 
         private Dictionary<string, List<string>> InitializeFinancialDataElements(List<FinancialData> financialDataRecords)

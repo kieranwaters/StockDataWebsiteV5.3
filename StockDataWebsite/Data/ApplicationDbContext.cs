@@ -8,8 +8,15 @@ namespace StockDataWebsite.Data
         // Constructor for ApplicationDbContext (Inject DbContextOptions)
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
-        }
 
+        }
+        public class XBRLDataType
+        {
+            public int CompanyID { get; set; }
+            public string RawElementName { get; set; }
+            public string ElementLabel { get; set; }
+            // Other fields like BalanceType, Definition if needed
+        }
         // Define DbSet properties for your tables
         public DbSet<CompanySelection> CompaniesList { get; set; }
         public DbSet<FinancialData> FinancialData { get; set; }
