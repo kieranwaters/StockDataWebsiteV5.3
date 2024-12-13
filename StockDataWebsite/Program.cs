@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using StockDataWebsite.Data;
+using StockScraperV3; // Added to reference XBRLElementData
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,13 +23,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
+// Register XBRLElementData with the DI container
+builder.Services.AddScoped<XBRLElementData>(provider =>
+    new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
+
 // Add distributed memory cache and session
 builder.Services.AddSingleton<TwelveDataService>(sp => new TwelveDataService(
     new HttpClient(),
     "beaacd3af7c247a58531686c3838c04b"
 ));
-
-
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

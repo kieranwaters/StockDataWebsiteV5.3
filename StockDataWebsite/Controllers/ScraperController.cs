@@ -1,16 +1,27 @@
+// ScraperController.cs
 using Microsoft.AspNetCore.Mvc;
 using StockDataWebsite.Models;
 using StockScraperV3;
+using System.Threading.Tasks;
 
 namespace StockDataWebsite.Controllers
 {
     public class ScraperController : Controller
-    {  // Action for displaying the form
+    {
+        private readonly XBRLElementData _xbrlScraperService;
+
+        // Constructor injection of XBRLElementData
+        public ScraperController(XBRLElementData xbrlScraperService)
+        {
+            _xbrlScraperService = xbrlScraperService;
+        }
+
         [HttpGet]
         public IActionResult Index()
         {
             return View();
         }
+
         [HttpPost]
         public async Task<IActionResult> ScrapeUnscrapedReports()
         {
@@ -36,7 +47,6 @@ namespace StockDataWebsite.Controllers
         {
             try
             {
-                
                 // Start the scraping process asynchronously
                 await StockScraperV3.URL.ContinueScrapingUnscrapedCompaniesAsync();
 
@@ -49,6 +59,7 @@ namespace StockDataWebsite.Controllers
                 return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
             }
         }
+
         [HttpPost]
         public async Task<IActionResult> Scrape(CompanySelection company)
         {
@@ -66,6 +77,27 @@ namespace StockDataWebsite.Controllers
             return View("Result");
         }
 
+        // New action to trigger XBRL data parsing and saving
+        [HttpPost]
+        [ValidateAntiForgeryToken] // Ensures CSRF protection
+        public async Task<IActionResult> ParseAndSaveXbrlData()
+        {
+            try
+            {
+                Console.WriteLine("[INFO] ParseAndSaveXbrlData action triggered.");
+
+                // Start the scraping process asynchronously
+                await _xbrlScraperService.ParseAndSaveXbrlDataAsync();
+
+                Console.WriteLine("[INFO] XBRL data parsed and saved successfully.");
+                return Json(new { success = true, message = "XBRL data has been parsed and saved successfully." });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] {ex.Message}");
+                return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
+        }
+
     }
 }
-
