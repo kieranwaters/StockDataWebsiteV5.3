@@ -11,9 +11,17 @@
         if (string.IsNullOrEmpty(elementName))
             return elementName;
 
-        // Insert spaces before each capital letter except the first one
+        // Check if the entire string is uppercase
+        if (elementName.ToUpperInvariant() == elementName)
+        {
+            // If it's fully uppercase, return it as-is without adding spaces
+            return elementName;
+        }
+
+        // Otherwise, insert spaces before each capital letter except the first one
         return System.Text.RegularExpressions.Regex.Replace(elementName, "(?<!^)([A-Z])", " $1");
     }
+
 }
 
 <body>
