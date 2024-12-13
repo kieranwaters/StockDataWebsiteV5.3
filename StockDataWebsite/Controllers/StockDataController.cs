@@ -20,18 +20,33 @@ namespace StockDataWebsite.Controllers
             _twelveDataService = twelveDataService;
             _logger = logger;
         }
-        public async Task<IActionResult> StockData(string companyName, string dataType = "annual")
+        public async Task<IActionResult> StockData(string companyName, string dataType = "annual", string baseType = null)
         {
             try
             {
                 // Validate and sanitize dataType
-                // Add "enhanced" to allowed data types
+                // The allowed values are now "annual", "quarterly", and "enhanced"
                 if (dataType != "annual" && dataType != "quarterly" && dataType != "enhanced")
                 {
                     dataType = "annual";
                 }
 
-                // Retrieve company details based on companyName
+                // Determine baseType if not provided
+                if (baseType == null)
+                {
+                    if (dataType == "enhanced")
+                    {
+                        // Default to "annual" if no baseType was provided
+                        // Or you can choose to default to "quarterly"
+                        baseType = "annual";
+                    }
+                    else
+                    {
+                        // If not enhanced, baseType = dataType
+                        baseType = dataType;
+                    }
+                }
+
                 var (companyId, companySymbol) = GetCompanyDetails(companyName);
                 if (companyId == 0)
                 {
@@ -39,52 +54,46 @@ namespace StockDataWebsite.Controllers
                     return BadRequest("Company not found.");
                 }
 
-                // Fetch recent reports and financial data
-                var (recentReportPairs, recentReportKeys, financialDataRecords, recentReports) = FetchRecentReportsAndData(companyId, dataType == "enhanced" ? "annual" : dataType);
+                // If we're showing enhanced data, we still need to fetch reports as per the baseType (annual or quarterly)
+                var dataTypeForFetching = (dataType == "enhanced") ? baseType : dataType;
+
+                // Fetch recent reports and financial data based on dataTypeForFetching
+                var (recentReportPairs, recentReportKeys, financialDataRecords, recentReports) = FetchRecentReportsAndData(companyId, dataTypeForFetching);
                 if (!financialDataRecords.Any())
                 {
                     _logger.LogWarning($"StockData: No financial records found for CompanyID = {companyId}");
                     return BadRequest("No financial records found.");
                 }
 
-                // For enhanced data, we skip statement grouping and scaling, and only show XBRL data.
                 List<StatementFinancialData> orderedStatements;
-                List<ReportPeriod> reportPeriods = CreateReportPeriods(dataType == "enhanced" ? "annual" : dataType, recentReportPairs);
+                List<ReportPeriod> reportPeriods = CreateReportPeriods(dataTypeForFetching, recentReportPairs);
 
                 if (dataType == "enhanced")
                 {
-                    // Existing code:
+                    // Enhanced data logic
                     var financialDataRecordsLookup = financialDataRecords.ToDictionary(fd => $"{fd.Year.Value}-{fd.Quarter}", fd => fd);
                     var xbrlElements = ExtractXbrlElements(financialDataRecordsLookup, recentReportPairs);
 
-                    // Convert xbrlElements dictionary into Statements with no scaling, no grouping
                     var displayMetrics = xbrlElements.Select(kvp => new DisplayMetricRow1
                     {
-                        DisplayName = kvp.Key, // Element name (RawElementName)
+                        DisplayName = kvp.Key,
                         Values = kvp.Value.ToList(),
                         IsMergedRow = false,
                         RowSpan = 1
                     }).ToList();
 
-                    // NEW CODE STARTS HERE: Use ADO.NET for direct SQL query
-                    // Extract all raw element names
+                    // Perform raw SQL query to map RawElementName to ElementLabel as previously shown
                     var rawElementNames = displayMetrics.Select(dm => dm.DisplayName).Distinct().ToList();
-
-                    // Build a SQL IN clause for the raw element names
                     var parameterizedNames = string.Join(",", rawElementNames.Select((_, index) => $"@p{index}"));
                     var sqlQuery = $"SELECT RawElementName, ElementLabel FROM XBRLDataTypes WHERE RawElementName IN ({parameterizedNames})";
 
                     var labelMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
                     using (var connection = _context.Database.GetDbConnection())
                     {
                         connection.Open();
-
                         using (var command = connection.CreateCommand())
                         {
                             command.CommandText = sqlQuery;
-
-                            // Add parameters to prevent SQL injection
                             for (int i = 0; i < rawElementNames.Count; i++)
                             {
                                 var parameter = command.CreateParameter();
@@ -105,45 +114,39 @@ namespace StockDataWebsite.Controllers
                         }
                     }
 
-                    // Update DisplayName with ElementLabel if exists
                     foreach (var metric in displayMetrics)
                     {
                         if (labelMap.TryGetValue(metric.DisplayName, out var label))
                         {
-                            metric.DisplayName = label; // Replace the raw name with the human-readable label
+                            metric.DisplayName = label;
                         }
                     }
-                    // NEW CODE ENDS HERE
 
                     orderedStatements = new List<StatementFinancialData>
-    {
-        new StatementFinancialData
-        {
-            StatementType = "Enhanced Data",
-            DisplayMetrics = displayMetrics,
-            ScalingLabel = "" // No scaling label
-        }
-    };
+            {
+                new StatementFinancialData
+                {
+                    StatementType = "Enhanced Data",
+                    DisplayMetrics = displayMetrics,
+                    ScalingLabel = ""
+                }
+            };
                 }
                 else
                 {
-                    // Existing logic for annual/quarterly
+                    // Basic data logic
                     var financialDataRecordsLookup = financialDataRecords.ToDictionary(fd => $"{fd.Year.Value}-{fd.Quarter}", fd => fd);
 
-                    // Initialize and populate financial data elements (HTML-based)
                     var financialDataElements = InitializeFinancialDataElements(financialDataRecords);
                     PopulateFinancialDataElements(financialDataElements, financialDataRecordsLookup, recentReportPairs);
 
-                    // Group financial data by statement and create ordered statements
                     var statementsDict = GroupFinancialDataByStatement(financialDataElements);
                     orderedStatements = CreateOrderedStatements(statementsDict, recentReports);
                 }
 
-                // Fetch the stock price asynchronously
                 var stockPrice = await _twelveDataService.GetStockPriceAsync(companySymbol);
                 var formattedStockPrice = stockPrice.HasValue ? $"${stockPrice.Value:F2}" : "N/A";
 
-                // Construct the view model with all necessary data
                 var model = new StockDataViewModel
                 {
                     CompanyName = companyName,
@@ -151,26 +154,20 @@ namespace StockDataWebsite.Controllers
                     FinancialYears = reportPeriods,
                     Statements = orderedStatements,
                     StockPrice = formattedStockPrice,
-                    DataType = dataType
+                    DataType = dataType,
+                    BaseType = baseType // Store the baseType in the model
                 };
 
-                // Log successful data retrieval
                 _logger.LogInformation($"StockData: Successfully retrieved data for CompanyID = {companyId}, Symbol = {companySymbol}");
-
                 return View(model);
             }
             catch (Exception ex)
             {
-                // Log the exception with detailed information
                 _logger.LogError(ex, $"StockData: An exception occurred while processing data for CompanyName = {companyName}, DataType = {dataType}");
-
-                // Optionally, you can pass the error message to the view or handle it as needed
                 return StatusCode(500, "An error occurred while processing the data.");
             }
         }
 
-        // ENHANCED DATA CHANGES:
-        // Extract non-HTML (XBRL) elements and format them
         private Dictionary<string, List<string>> ExtractXbrlElements(Dictionary<string, FinancialData> financialDataRecordsLookup, List<(int Year, int Quarter)> recentReportPairs)
         {
             var xbrlElements = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);

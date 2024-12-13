@@ -13,6 +13,7 @@ namespace StockDataWebsite.Models
         public List<string> HtmlElementsOfInterest { get; set; }
         public List<StatementFinancialData> Statements { get; set; }
         public string StockPrice { get; set; }
+        public string BaseType { get; set; }
     }
     public class DisplayMetricRow
     {

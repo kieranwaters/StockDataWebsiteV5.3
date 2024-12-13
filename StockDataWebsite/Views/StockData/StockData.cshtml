@@ -53,14 +53,25 @@
                    class="btn btn-secondary me-2 @(Model.DataType == "quarterly" ? "active" : "")">
                     Quarterly Data
                 </a>
-                <!-- New Enhanced Financial Data Button -->
-                <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "enhanced" })"
-                   class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
-                    Enhanced Financial Data
-                </a>
+
+                @if (Model.DataType == "enhanced")
+                {
+                    <!-- Currently in enhanced mode, show button to revert to basic data -->
+                    <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = Model.BaseType })"
+                       class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
+                        Basic Financial Data
+                    </a>
+                }
+                else
+                {
+                    <!-- Currently in basic mode, show button to switch to enhanced data -->
+                    <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "enhanced", baseType = Model.DataType })"
+                       class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
+                        Enhanced Financial Data
+                    </a>
+                }
             </div>
         </div>
-
         <!-- Financial Data Table -->
         <div class="horizontal-scroll">
             <table class="table table-striped table-bordered">
