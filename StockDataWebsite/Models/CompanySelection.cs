@@ -33,6 +33,7 @@ namespace StockDataWebsite.Models
         public int Quarter { get; set; }
         public bool IsHtmlParsed { get; set; } // Tracks if HTML parsing is complete
         public int? Year { get; set; }
+        public DateTime EndDate { get; set; }
         public string FinancialDataJson { get; set; }
     }
     public class CompanySelection
