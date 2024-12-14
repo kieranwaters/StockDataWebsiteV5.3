@@ -113,8 +113,8 @@
                                                 var isLongName = formattedName.Length > 40;
                                                 var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
                                                 var labels = Model.FinancialYears != null
-                                                ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
-                                                : new List<string>();
+                                                    ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
+                                                    : new List<string>();
                                                 var numericValues = metric.Values?.Select(v => decimal.TryParse(v, out var num) ? num.ToString("N0") : "N/A").Reverse().ToList() ?? new List<string>();
                                             }
                                             @if (isLongName)

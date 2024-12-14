@@ -268,7 +268,7 @@ namespace StockDataWebsite.Controllers
         }
 
 
-        private Dictionary<string, List<string>> InitializeFinancialDataElements(List<FinancialData> financialDataRecords)
+        public Dictionary<string, List<string>> InitializeFinancialDataElements(List<FinancialData> financialDataRecords)
         {
             var financialDataElements = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var htmlKeyRegex = new Regex(@"^(?:HTML_)?(?:AnnualReport|Q\dReport)_(?<StatementType>.*?)_(?<MetricName>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -302,7 +302,7 @@ namespace StockDataWebsite.Controllers
             }
             return financialDataElements;
         }
-        private void PopulateFinancialDataElements(Dictionary<string, List<string>> financialDataElements, Dictionary<string, FinancialData> financialDataRecordsLookup, List<(int Year, int Quarter)> recentReportPairs)
+        public void PopulateFinancialDataElements(Dictionary<string, List<string>> financialDataElements, Dictionary<string, FinancialData> financialDataRecordsLookup, List<(int Year, int Quarter)> recentReportPairs)
         {
             var htmlKeyRegex = new Regex(@"^(?:HTML_)?(?:AnnualReport|Q\dReport)_(?<StatementType>.*?)_(?<MetricName>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             foreach (var reportPair in recentReportPairs)
@@ -361,7 +361,7 @@ namespace StockDataWebsite.Controllers
                 }
             }
         }
-        private Dictionary<string, Dictionary<string, List<string>>> GroupFinancialDataByStatement(Dictionary<string, List<string>> financialDataElements)
+        public Dictionary<string, Dictionary<string, List<string>>> GroupFinancialDataByStatement(Dictionary<string, List<string>> financialDataElements)
         {
             var statementsDict = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
 
@@ -389,7 +389,7 @@ namespace StockDataWebsite.Controllers
             }
             return statementsDict;
         }
-        private List<StatementFinancialData> CreateOrderedStatements(Dictionary<string, Dictionary<string, List<string>>> statementsDict, List<string> recentReports)
+        public List<StatementFinancialData> CreateOrderedStatements(Dictionary<string, Dictionary<string, List<string>>> statementsDict, List<string> recentReports)
         {
             var desiredOrder = new List<string> { "Statements Of Operations", "Income Statement", "Cashflow", "Balance Sheet" };
             var operationsKey = statementsDict.Keys.FirstOrDefault(k => k.Equals("Statements Of Operations", StringComparison.OrdinalIgnoreCase) ||
@@ -522,7 +522,7 @@ namespace StockDataWebsite.Controllers
             }
             return (company.CompanyID, company.CompanySymbol);
         }
-        private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys, List<FinancialData> financialDataRecords, List<string> recentReports)
+        public (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys, List<FinancialData> financialDataRecords, List<string> recentReports)
             FetchRecentReportsAndData(int companyId, string dataType)
         {
             if (dataType == "annual")
@@ -649,7 +649,7 @@ namespace StockDataWebsite.Controllers
                 return $"General_{originalKey.Trim()}";
             }
         }
-        private List<ReportPeriod> CreateReportPeriods(string dataType, List<(int Year, int Quarter)> recentReportPairs)
+        public List<ReportPeriod> CreateReportPeriods(string dataType, List<(int Year, int Quarter)> recentReportPairs)
         {
             if (dataType == "annual")
             {

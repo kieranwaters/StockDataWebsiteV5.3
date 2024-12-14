@@ -5,7 +5,8 @@
 
 <h2>Select a Company for Financial Data</h2>
 
-<form asp-action="SearchResults" method="get"> <!-- Ensure this is correct -->
+<form asp-action="SearchResults" method="get">
+    <!-- Ensure this is correct -->
     <div class="form-group">
         <label for="CompanySearch">Search by Company Name or Symbol</label>
         <input type="text" class="form-control" id="CompanySearch" name="CompanySearch" placeholder="Enter company name or symbol" required />
@@ -14,37 +15,64 @@
 
     <button type="submit" class="btn btn-primary custom-margin">Search</button>
 </form>
+
+<!-- Display all companies in a table below the search form -->
+<h3>All Companies</h3>
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>Company Name</th>
+            <th>Symbol</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (ViewBag.AllCompanies != null)
+        {
+            foreach (var company in ViewBag.AllCompanies)
+            {
+                <tr>
+                    <td>
+                        <a asp-action="StockData" asp-controller="StockData" asp-route-companyName="@company.CompanyName">
+                            @company.CompanyName
+                        </a>
+                    </td>
+                    <td>@company.CompanySymbol</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
 <!-- JavaScript for dynamic dropdown suggestions -->
 <script>
-   document.getElementById('CompanySearch').addEventListener('input', function () {
-    const query = this.value;
+    document.getElementById('CompanySearch').addEventListener('input', function () {
+        const query = this.value;
 
-    if (query.length >= 2) {
-        fetch(`/api/companies/search?query=${query}`)
-            .then(response => response.json())
-            .then(data => {
-                const suggestions = document.getElementById('suggestions');
-                suggestions.innerHTML = ''; 
+        if (query.length >= 2) {
+            fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const suggestions = document.getElementById('suggestions');
+                    suggestions.innerHTML = '';
 
-                if (data.length > 0) {
-                    data.forEach(company => {
-                        const suggestionItem = document.createElement('a');
-                        suggestionItem.classList.add('list-group-item', 'list-group-item-action');
-                        suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
+                    if (data.length > 0) {
+                        data.forEach(company => {
+                            const suggestionItem = document.createElement('a');
+                            suggestionItem.classList.add('list-group-item', 'list-group-item-action');
+                            suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
 
-                        suggestionItem.addEventListener('click', function () {
-                            document.getElementById('CompanySearch').value = company.companyName;
-                            suggestions.innerHTML = ''; // Clear suggestions
+                            suggestionItem.addEventListener('click', function () {
+                                document.getElementById('CompanySearch').value = company.companyName;
+                                suggestions.innerHTML = ''; // Clear suggestions
+                            });
+
+                            suggestions.appendChild(suggestionItem);
                         });
-
-                        suggestions.appendChild(suggestionItem);
-                    });
-                } else {
-                    suggestions.innerHTML = '<div class="list-group-item">No results found</div>';
-                }
-            })
-            .catch(error => console.error('Error fetching suggestions:', error));
-    }
-});
-
+                    } else {
+                        suggestions.innerHTML = '<div class="list-group-item">No results found</div>';
+                    }
+                })
+                .catch(error => console.error('Error fetching suggestions:', error));
+        }
+    });
 </script>
