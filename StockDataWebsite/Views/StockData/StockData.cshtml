@@ -21,7 +21,6 @@
         // Otherwise, insert spaces before each capital letter except the first one
         return System.Text.RegularExpressions.Regex.Replace(elementName, "(?<!^)([A-Z])", " $1");
     }
-
 }
 
 <body>
@@ -56,7 +55,6 @@
 
                 @if (Model.DataType == "enhanced")
                 {
-                    <!-- Currently in enhanced mode, show button to revert to basic data -->
                     <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = Model.BaseType })"
                        class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
                         Basic Financial Data
@@ -64,7 +62,6 @@
                 }
                 else
                 {
-                    <!-- Currently in basic mode, show button to switch to enhanced data -->
                     <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "enhanced", baseType = Model.DataType })"
                        class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
                         Enhanced Financial Data
@@ -72,6 +69,7 @@
                 }
             </div>
         </div>
+
         <!-- Financial Data Table -->
         <div class="horizontal-scroll">
             <table class="table table-striped table-bordered">
@@ -79,23 +77,23 @@
                     <tr>
                         @if (Model.DataType == "enhanced")
                         {
-                            <th class="text-center">Element</th> <!-- Header for Element Names -->
+                            <th class="text-center">Element</th>
                         }
                         else
                         {
-                            <th class="text-center"> </th> <!-- Empty header for Statements -->
+                            <th class="text-center"> </th>
                         }
 
                         @if (Model.FinancialYears != null && Model.FinancialYears.Any())
                         {
                             foreach (var period in Model.FinancialYears.AsEnumerable().Reverse())
                             {
-                                <th class="text-center">@period.DisplayName.Replace("Report", "").Trim()</th> <!-- Headers for Periods -->
+                                <th class="text-center">@period.DisplayName.Replace("Report", "").Trim()</th>
                             }
                         }
                         else
                         {
-                            <th class="text-center">Period</th> <!-- Default Header if No FinancialYears -->
+                            <th class="text-center">Period</th>
                         }
                     </tr>
                 </thead>
@@ -104,7 +102,6 @@
                     {
                         if (Model.DataType == "enhanced")
                         {
-                            <!-- Enhanced Financial Data: Flat Table Without Statements -->
                             @foreach (var statement in Model.Statements)
                             {
                                 foreach (var metric in statement.DisplayMetrics)
@@ -112,9 +109,13 @@
                                     <tr>
                                         <td class="align-middle text-nowrap">
                                             @{
-                                                var formattedName = FormatElementName(metric.DisplayName);
+                                                var formattedName = FormatElementName(metric.DisplayName ?? "").Replace("(null)", "").Trim();
                                                 var isLongName = formattedName.Length > 40;
                                                 var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
+                                                var labels = Model.FinancialYears != null
+                                                ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
+                                                : new List<string>();
+                                                var numericValues = metric.Values?.Select(v => decimal.TryParse(v, out var num) ? num.ToString("N0") : "N/A").Reverse().ToList() ?? new List<string>();
                                             }
                                             @if (isLongName)
                                             {
@@ -122,18 +123,18 @@
                                                       data-full-name="@formattedName"
                                                       data-truncated-name="@displayName"
                                                       data-expanded="false"
-                                                      data-metric="@metric.DisplayName"
-                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
-                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
+                                                      data-metric="@formattedName"
+                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
+                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
                                                       style="cursor: pointer;"
                                                       title="Click to view graph">@displayName</span>
                                             }
                                             else
                                             {
                                                 <span class="element-name text-primary"
-                                                      data-metric="@metric.DisplayName"
-                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
-                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
+                                                      data-metric="@formattedName"
+                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
+                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
                                                       style="cursor: pointer;"
                                                       title="Click to view historical data">@formattedName</span>
                                             }
@@ -157,8 +158,7 @@
                                         }
                                         else
                                         {
-                                            <!-- Placeholder for Missing Values -->
-                                            <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0))" class="text-center">N/A</td>
+                                            <td colspan="@((Model.FinancialYears?.Count ?? 0))" class="text-center">N/A</td>
                                         }
                                     </tr>
                                 }
@@ -166,11 +166,10 @@
                         }
                         else
                         {
-                            <!-- Standard Financial Data: Grouped by Statements -->
                             foreach (var statement in Model.Statements)
                             {
                                 <tr class="table-primary">
-                                    <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0) + 1)">
+                                    <td colspan="@((Model.FinancialYears?.Count ?? 0) + 1)">
                                         <strong>@statement.StatementType</strong>
                                         @if (!string.IsNullOrEmpty(statement.ScalingLabel))
                                         {
@@ -186,19 +185,9 @@
                                         <tr>
                                             <td class="align-middle text-nowrap">
                                                 @{
-                                                    var formattedName = FormatElementName(metric.DisplayName);
+                                                    var formattedName = FormatElementName(metric.DisplayName ?? "").Trim();
                                                     var isLongName = formattedName.Length > 40;
                                                     var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
-                                                    // Prepare historical values for the metric
-                                                    var historicalValues = metric.Values != null && metric.Values.Any()
-                                                    ? metric.Values.AsEnumerable().Reverse().ToList()
-                                                    : new List<string> { };
-                                                    // Convert string values to decimal where possible
-                                                    var numericValues = historicalValues.Select(v => decimal.TryParse(v, out var num) ? num : (decimal?)null).ToList();
-                                                    // Prepare labels based on FinancialYears
-                                                    var labels = Model.FinancialYears != null
-                                                    ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
-                                                    : new List<string>();
                                                 }
                                                 @if (isLongName)
                                                 {
@@ -208,8 +197,8 @@
                                                           data-expanded="false"
                                                           data-scaling-label="@statement.ScalingLabel"
                                                           data-metric="@metric.DisplayName"
-                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
-                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
+                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
+                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
                                                           style="cursor: pointer;"
                                                           title="Click to view graph">@displayName</span>
                                                 }
@@ -218,8 +207,8 @@
                                                     <span class="element-name text-primary"
                                                           data-metric="@metric.DisplayName"
                                                           data-scaling-label="@statement.ScalingLabel"
-                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
-                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
+                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
+                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
                                                           style="cursor: pointer;"
                                                           title="Click to view historical data">@formattedName</span>
                                                 }
@@ -243,17 +232,15 @@
                                             }
                                             else
                                             {
-                                                <!-- Placeholder for Missing Values -->
-                                                <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0))" class="text-center">N/A</td>
+                                                <td colspan="@((Model.FinancialYears?.Count ?? 0))" class="text-center">N/A</td>
                                             }
                                         </tr>
                                     }
                                 }
                                 else
                                 {
-                                    <!-- Placeholder for No Metrics in Statement -->
                                     <tr>
-                                        <td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 0) + 1)" class="text-center text-muted">
+                                        <td colspan="@((Model.FinancialYears?.Count ?? 1))" class="text-center text-muted">
                                             No financial metrics available for this statement.
                                         </td>
                                     </tr>
@@ -263,8 +250,7 @@
                     }
                     else
                     {
-                        <!-- Placeholder for No Statements Available -->
-                        <tr><td colspan="@((Model.FinancialYears != null ? Model.FinancialYears.Count : 1))">No statements available.</td></tr>
+                        <tr><td colspan="@((Model.FinancialYears?.Count ?? 1))">No statements available.</td></tr>
                     }
                 </tbody>
             </table>
@@ -294,9 +280,6 @@
 
     @section Scripts {
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-                integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+SR1YtgHj4q6G5u0oJQ0Jef1BiCh/"
-                crossorigin="anonymous"></script>
         <script src="~/js/chart.js"></script>
     }
 </body>
