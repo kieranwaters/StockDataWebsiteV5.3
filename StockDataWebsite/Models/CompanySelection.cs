@@ -14,7 +14,13 @@ namespace StockDataWebsite.Models
         public List<StatementFinancialData> Statements { get; set; }
         public string StockPrice { get; set; }
         public string BaseType { get; set; }
+        public List<StatementFinancialData> Statements2 { get; internal set; }
     }
+    public class RemoveCompanyRequest
+    {
+        public string CompanySymbol { get; set; }
+    }
+
     public class DisplayMetricRow
     {
         public string DisplayName { get; set; }
