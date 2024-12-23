@@ -31,18 +31,89 @@ namespace StockDataWebsite.Controllers
         private readonly XBRLElementData _xbrlScraperService;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ScraperController> _logger;
+        private readonly URL _urlService; // Injected URL service
 
-        // Constructor injection of XBRLElementData
-        public ScraperController(XBRLElementData xbrlScraperService, ApplicationDbContext context, ILogger<ScraperController> logger)
+        // Constructor injection of XBRLElementData and URL
+        public ScraperController(
+            XBRLElementData xbrlScraperService,
+            ApplicationDbContext context,
+            ILogger<ScraperController> logger,
+            URL urlService) // Add URL to constructor
         {
             _xbrlScraperService = xbrlScraperService;
             _context = context;
             _logger = logger;
+            _urlService = urlService; // Assign to private field
         }
         [HttpGet]
         public IActionResult Index()
         {
             return View();
+        }
+        [HttpGet("extract-and-log-xbrl-elements")]
+        public async Task<IActionResult> ExtractAndLogXbrlElements()
+        {
+            try
+            {
+                _logger.LogInformation("Starting to extract XBRL elements (console mode).");
+
+                var uniqueElements = await _urlService.ExtractAndOutputUniqueXbrlElementsAsync();
+
+                // Instead of returning them to the webpage, log to console
+                Console.WriteLine("[ExtractAndLogXbrlElements] Unique XBRL Elements:");
+                if (uniqueElements.Count == 0)
+                {
+                    Console.WriteLine("None found.");
+                }
+                else
+                {
+                    foreach (var element in uniqueElements)
+                    {
+                        Console.WriteLine($" - {element}");
+                    }
+                }
+
+                _logger.LogInformation("Extraction done. Results logged to console.");
+
+                // Return a simple message so the user knows it finished
+                return Ok("Successfully extracted and logged XBRL elements to the console.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while extracting XBRL elements (console mode).");
+                return BadRequest($"An error occurred: {ex.Message}");
+            }
+        }
+        [HttpGet("api/scraper/unique-xbrl-elements")]
+        public async Task<IActionResult> UniqueXbrlElements()
+        {
+            try
+            {
+                var uniqueElements = await _urlService.ExtractAndOutputUniqueXbrlElementsAsync();
+
+                // 1) Log them to the server console:
+                Console.WriteLine("[INFO] Unique XBRL Elements:");
+                if (uniqueElements.Count == 0)
+                {
+                    Console.WriteLine("  None found.");
+                }
+                else
+                {
+                    foreach (var element in uniqueElements)
+                    {
+                        Console.WriteLine($"  - {element}");
+                    }
+                }
+
+                // 2) Return a simple text or JSON response telling the user to check console:
+                return Ok("XBRL elements were logged to the server console. Check the console window!");
+            }
+            catch (Exception ex)
+            {
+                // Log or handle error
+                Console.WriteLine($"[ERROR] {ex.Message}");
+                return StatusCode(500, "An error occurred. Check server logs for more details.");
+            }
         }
         [HttpGet]
         public async Task<IActionResult> CountNumericalValues()

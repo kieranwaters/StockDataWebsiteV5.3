@@ -27,6 +27,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<XBRLElementData>(provider =>
     new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
+builder.Services.AddTransient<URL>(provider =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("StockDataScraperDatabase");
+    return new URL(connectionString);
+});
 
 // Add distributed memory cache and session
 builder.Services.AddSingleton<TwelveDataService>(sp => new TwelveDataService(
