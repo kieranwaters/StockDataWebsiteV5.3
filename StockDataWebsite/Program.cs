@@ -70,7 +70,7 @@ app.UseAuthorization();
 // Set default route to ScraperController
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Scraper}/{action=Index}/{id?}");
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
 
