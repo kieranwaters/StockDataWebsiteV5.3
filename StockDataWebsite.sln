@@ -4,14 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockDataWebsite", "StockDataWebsite\StockDataWebsite.csproj", "{87B1C914-FD26-49BC-82FC-3B6678D65C18}"
-	ProjectSection(ProjectDependencies) = postProject
-		{0880686E-5BAB-455F-A51F-E590F6C7563B} = {0880686E-5BAB-455F-A51F-E590F6C7563B}
-		{F2270CAD-2D02-4E50-B42D-05A5918B07A5} = {F2270CAD-2D02-4E50-B42D-05A5918B07A5}
-	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockInfoAPI", "..\..\..\Documents\repos\StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj", "{0880686E-5BAB-455F-A51F-E590F6C7563B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockInfoAPI", "StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj", "{F41D5A3D-4928-4F5F-809C-0B94E79710E5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "..\..\..\Documents\repos\StockScraperV3\StockScraperV3\StockScraperV3.csproj", "{F2270CAD-2D02-4E50-B42D-05A5918B07A5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "StockScraperV3\StockScraperV3\StockScraperV3\StockScraperV3.csproj", "{377ADDE2-5FA0-412B-AD59-55D934BBAEDF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,14 +19,14 @@ Global
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0880686E-5BAB-455F-A51F-E590F6C7563B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0880686E-5BAB-455F-A51F-E590F6C7563B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0880686E-5BAB-455F-A51F-E590F6C7563B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0880686E-5BAB-455F-A51F-E590F6C7563B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F2270CAD-2D02-4E50-B42D-05A5918B07A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F2270CAD-2D02-4E50-B42D-05A5918B07A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F2270CAD-2D02-4E50-B42D-05A5918B07A5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F2270CAD-2D02-4E50-B42D-05A5918B07A5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F41D5A3D-4928-4F5F-809C-0B94E79710E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F41D5A3D-4928-4F5F-809C-0B94E79710E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F41D5A3D-4928-4F5F-809C-0B94E79710E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F41D5A3D-4928-4F5F-809C-0B94E79710E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{377ADDE2-5FA0-412B-AD59-55D934BBAEDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{377ADDE2-5FA0-412B-AD59-55D934BBAEDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{377ADDE2-5FA0-412B-AD59-55D934BBAEDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{377ADDE2-5FA0-412B-AD59-55D934BBAEDF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
