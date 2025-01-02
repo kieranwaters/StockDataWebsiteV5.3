@@ -48,8 +48,35 @@ namespace StockDataWebsite.Controllers
         [HttpGet]
         public IActionResult Index()
         {
-            return View();
+            // 1) Check if the user is logged in
+            var username = HttpContext.Session.GetString("Username");
+            if (username == null)
+            {
+                // Not logged in at all, redirect or show error
+                return RedirectToAction("Login", "Account");
+                // or return Unauthorized();
+            }
+
+            // 2) Lookup the user in your DB or your EF context
+            var user = _context.Users.FirstOrDefault(u => u.Username == username);
+            if (user == null)
+            {
+                // Also invalid
+                return RedirectToAction("Login", "Account");
+            }
+
+            // 3) Check if user.Admin == true
+            if (!user.Admin)
+            {
+                // The user isn't admin
+                return Content("Access Denied. You do not have Admin privileges.");
+                // or return Forbid();
+            }
+
+            // 4) If we get here, the user is admin
+            return View(); // Show the Scraper page
         }
+
         [HttpGet("extract-and-log-xbrl-elements")]
         public async Task<IActionResult> ExtractAndLogXbrlElements()
         {
@@ -310,6 +337,7 @@ namespace StockDataWebsite.Controllers
             ViewBag.Result = result;
             return View("Result");
         }
+        
 
         // New action to trigger XBRL data parsing and saving
         [HttpPost]

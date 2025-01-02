@@ -4,14 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockDataWebsite", "StockDataWebsite\StockDataWebsite.csproj", "{87B1C914-FD26-49BC-82FC-3B6678D65C18}"
-	ProjectSection(ProjectDependencies) = postProject
-		{670B4A32-DE6E-49CF-856C-52FBB8E1259A} = {670B4A32-DE6E-49CF-856C-52FBB8E1259A}
-		{A8B58FDE-3F49-45D8-A45B-5F5213A52E84} = {A8B58FDE-3F49-45D8-A45B-5F5213A52E84}
-	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockInfoAPI", "..\StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj", "{A8B58FDE-3F49-45D8-A45B-5F5213A52E84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockInfoAPI", "..\StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj", "{13A38D94-D17F-4C84-88C8-F871A591AA1D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockScraperV3", "..\..\..\Documents\repos\StockScraperV3\StockScraperV3\StockScraperV3.csproj", "{670B4A32-DE6E-49CF-856C-52FBB8E1259A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "..\StockScraperV3\StockScraperV3\StockScraperV3.csproj", "{544B7FFB-9C8A-4A65-AFAF-2C12C7EF66F8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,14 +19,14 @@ Global
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A8B58FDE-3F49-45D8-A45B-5F5213A52E84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A8B58FDE-3F49-45D8-A45B-5F5213A52E84}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A8B58FDE-3F49-45D8-A45B-5F5213A52E84}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A8B58FDE-3F49-45D8-A45B-5F5213A52E84}.Release|Any CPU.Build.0 = Release|Any CPU
-		{670B4A32-DE6E-49CF-856C-52FBB8E1259A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{670B4A32-DE6E-49CF-856C-52FBB8E1259A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{670B4A32-DE6E-49CF-856C-52FBB8E1259A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{670B4A32-DE6E-49CF-856C-52FBB8E1259A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13A38D94-D17F-4C84-88C8-F871A591AA1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13A38D94-D17F-4C84-88C8-F871A591AA1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13A38D94-D17F-4C84-88C8-F871A591AA1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13A38D94-D17F-4C84-88C8-F871A591AA1D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{544B7FFB-9C8A-4A65-AFAF-2C12C7EF66F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{544B7FFB-9C8A-4A65-AFAF-2C12C7EF66F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{544B7FFB-9C8A-4A65-AFAF-2C12C7EF66F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{544B7FFB-9C8A-4A65-AFAF-2C12C7EF66F8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -6,5 +6,6 @@
         public string Username { get; set; } // Unique username
         public string Email { get; set; } // Unique email
         public string PasswordHash { get; set; } // Securely hashed password
+        public bool Admin { get; set; }
     }
 }
