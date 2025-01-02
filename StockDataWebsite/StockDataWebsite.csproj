@@ -42,4 +42,9 @@
 	  <Folder Include="wwwroot\js\NewFolder\" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\..\Documents\repos\StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj" />
+	  <ProjectReference Include="..\..\..\..\Documents\repos\StockScraperV3\StockScraperV3\StockScraperV3.csproj" />
+	</ItemGroup>
+
 </Project>
