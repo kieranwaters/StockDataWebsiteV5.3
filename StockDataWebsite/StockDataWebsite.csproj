@@ -88,13 +88,16 @@
 		<Folder Include="wwwroot\js\NewFolder\" />
 	</ItemGroup>
 
-	<ItemGroup>
+	<!--<ItemGroup>
 	  <Reference Include="StockInfoAPI">
 	    <HintPath>..\StockInfoAPI\StockInfoAPI\obj\Release\net8.0\StockInfoAPI.dll</HintPath>
 	  </Reference>
 	  <Reference Include="StockScraperV3">
 	    <HintPath>..\StockScraperV3\StockScraperV3\StockScraperV3\obj\Release\net8.0\StockScraperV3.dll</HintPath>
 	  </Reference>
+	</ItemGroup>-->
+	<ItemGroup>
+		<ProjectReference Include="..\StockInfoAPI\StockInfoAPI.csproj" />
+		<ProjectReference Include="..\StockScraperV3\StockScraperV3\StockScraperV3.csproj" />
 	</ItemGroup>
-
 </Project>
