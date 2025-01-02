@@ -44,7 +44,7 @@ public class AccountController : Controller
         TempData["Message"] = "Account created successfully. Please login.";
         return RedirectToAction("Login");
     }
-
+    //
     // GET: /Account/Login
     [HttpGet]
     public IActionResult Login()
