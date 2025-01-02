@@ -14,7 +14,7 @@
 		<Content Remove="Views\Home\Scraper.cshtml" />
 	</ItemGroup>
 
-	--><!-- Removed invalid path lines --><!--
+	 Removed invalid path lines 
 
 	<ItemGroup>
 		<None Remove="Views\Site.css" />
@@ -36,16 +36,20 @@
 		<Reference Include="StockInfoAPI">
 			<HintPath>..\..\StockInfoAPI\StockInfoAPI\bin\Debug\net8.0\StockInfoAPI.dll</HintPath>
 		</Reference>
-		<Reference Include="StockScraperV3">
-		  <HintPath>..\..\StockScraperV3\StockScraperV3\obj\Debug\net8.0\StockScraperV3.dll</HintPath>
-		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="wwwroot\js\NewFolder\" />
+		<Folder Include="wwwroot\js\NewFolder\" />
+	</ItemGroup>
+	
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\..\..\Documents\repos\StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj" />
+		<ProjectReference Include="..\..\..\..\Documents\repos\StockScraperV3\StockScraperV3\StockScraperV3.csproj" />
 	</ItemGroup>
 
 </Project>-->
+
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
@@ -81,18 +85,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="StockInfoAPI">
-			<HintPath>..\..\StockInfoAPI\StockInfoAPI\bin\Debug\net8.0\StockInfoAPI.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
 		<Folder Include="wwwroot\js\NewFolder\" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\..\..\Documents\repos\StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj" />
-		<ProjectReference Include="..\..\..\..\Documents\repos\StockScraperV3\StockScraperV3\StockScraperV3.csproj" />
+		<ProjectReference Include="..\StockInfoAPI\StockInfoAPI.csproj" />
+		<ProjectReference Include="..\StockScraperV3\StockScraperV3.csproj" />
 	</ItemGroup>
 
 </Project>
