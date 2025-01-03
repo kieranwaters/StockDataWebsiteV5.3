@@ -4,6 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockDataWebsite", "StockDataWebsite\StockDataWebsite.csproj", "{87B1C914-FD26-49BC-82FC-3B6678D65C18}"
+	ProjectSection(ProjectDependencies) = postProject
+		{2BCAAA86-3092-461A-BE9A-02C73E209795} = {2BCAAA86-3092-461A-BE9A-02C73E209795}
+		{6CF022A4-562A-4487-B50A-2227AC72DCE0} = {6CF022A4-562A-4487-B50A-2227AC72DCE0}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "StockScraperV3\StockScraperV3.csproj", "{2BCAAA86-3092-461A-BE9A-02C73E209795}"
 EndProject
