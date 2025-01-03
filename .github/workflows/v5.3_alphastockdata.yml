@@ -9,24 +9,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: windows-latest
 
     steps:
       # Step 1: Checkout the repository
       - uses: actions/checkout@v4
-
-      # Debugging Step: List Directory Contents
-      - name: List Repository Structure
-        run: |
-          echo "Root directory:"
-          dir
-          echo "StockDataWebsite directory:"
-          dir StockDataWebsite
-          echo "StockInfoAPI directory:"
-          dir StockInfoAPI
-          echo "StockScraperV3 directory:"
-          dir StockScraperV3
 
       # Step 2: Set up .NET Core SDK
       - name: Set up .NET Core
@@ -43,34 +31,10 @@ jobs:
         run: dotnet build ./StockDataWebsite.sln --configuration Release --no-restore
 
       # Step 5: Publish the application
-      - name: dotnet publish
+      - name: Publish the application
         run: dotnet publish ./StockDataWebsite.sln --configuration Release --no-build --output ./publish
 
-      # Step 6: Upload artifact for deployment job
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: .net-app
-          path: ./publish
-
-  deploy:
-    runs-on: windows-latest
-    needs: build
-    environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    permissions:
-      id-token: write # This is required for requesting the JWT
-
-    steps:
-      # Step 1: Download artifact from build job
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: .net-app
-          path: ./downloaded_publish
-
-      # Step 2: Login to Azure
+      # Step 6: Login to Azure
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -78,12 +42,11 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_26085E748555404F8313329CD5326AFC }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8A80DED398864F07B1F6C8F492F63449 }}
 
-      # Step 3: Deploy to Azure Web App
+      # Step 7: Deploy to Azure Web App
       - name: Deploy to Azure Web App
-        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'AlphaStockData' # Replace with your actual App Service name
           slot-name: 'Production'
-          package: ./downloaded_publish
+          package: ./publish
 
