@@ -9,7 +9,7 @@ using System.Data;
 using System.Data.SqlClient;
 
 namespace StockDataWebsite.Controllers
-{
+{//
     public static class SessionExtensions
     {
         // Extension method to set an object in session
