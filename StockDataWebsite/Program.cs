@@ -104,6 +104,7 @@ builder.Services.AddScoped<XBRLElementData>(provider =>
     new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 // 
+//
 builder.Services.AddTransient<URL>(provider =>
 {
     var configuration = provider.GetRequiredService<IConfiguration>();
