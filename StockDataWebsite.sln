@@ -4,14 +4,10 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.11.35222.181
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockDataWebsite", "StockDataWebsite\StockDataWebsite.csproj", "{87B1C914-FD26-49BC-82FC-3B6678D65C18}"
-	ProjectSection(ProjectDependencies) = postProject
-		{2BCAAA86-3092-461A-BE9A-02C73E209795} = {2BCAAA86-3092-461A-BE9A-02C73E209795}
-		{6CF022A4-562A-4487-B50A-2227AC72DCE0} = {6CF022A4-562A-4487-B50A-2227AC72DCE0}
-	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "StockScraperV3\StockScraperV3.csproj", "{2BCAAA86-3092-461A-BE9A-02C73E209795}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "..\..\..\Documents\repos\StockScraperV3\StockScraperV3\StockScraperV3.csproj", "{2BCC100F-B588-4D26-8018-E9172499A9E6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockInfoAPI", "StockInfoAPI\StockInfoAPI.csproj", "{6CF022A4-562A-4487-B50A-2227AC72DCE0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockInfoAPI", "..\..\..\Documents\repos\StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj", "{20A0A772-5838-4DF1-9DE6-5D8E8861A6E7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,14 +19,14 @@ Global
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{87B1C914-FD26-49BC-82FC-3B6678D65C18}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2BCAAA86-3092-461A-BE9A-02C73E209795}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2BCAAA86-3092-461A-BE9A-02C73E209795}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2BCAAA86-3092-461A-BE9A-02C73E209795}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2BCAAA86-3092-461A-BE9A-02C73E209795}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6CF022A4-562A-4487-B50A-2227AC72DCE0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6CF022A4-562A-4487-B50A-2227AC72DCE0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6CF022A4-562A-4487-B50A-2227AC72DCE0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6CF022A4-562A-4487-B50A-2227AC72DCE0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2BCC100F-B588-4D26-8018-E9172499A9E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BCC100F-B588-4D26-8018-E9172499A9E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BCC100F-B588-4D26-8018-E9172499A9E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BCC100F-B588-4D26-8018-E9172499A9E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20A0A772-5838-4DF1-9DE6-5D8E8861A6E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20A0A772-5838-4DF1-9DE6-5D8E8861A6E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20A0A772-5838-4DF1-9DE6-5D8E8861A6E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20A0A772-5838-4DF1-9DE6-5D8E8861A6E7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
