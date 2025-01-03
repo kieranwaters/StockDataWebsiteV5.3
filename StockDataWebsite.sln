@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StockDataWebsite", "StockDa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockInfoAPI", "StockInfoAPI\StockInfoAPI\StockInfoAPI.csproj", "{F41D5A3D-4928-4F5F-809C-0B94E79710E5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "StockScraperV3\StockScraperV3\StockScraperV3\StockScraperV3.csproj", "{377ADDE2-5FA0-412B-AD59-55D934BBAEDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockScraperV3", "StockScraperV3\StockScraperV3\StockScraperV3.csproj", "{377ADDE2-5FA0-412B-AD59-55D934BBAEDF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
