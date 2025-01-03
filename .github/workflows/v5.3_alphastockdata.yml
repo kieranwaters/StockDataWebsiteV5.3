@@ -16,6 +16,18 @@ jobs:
       # Step 1: Checkout the repository
       - uses: actions/checkout@v4
 
+      # Debugging Step: List Directory Contents
+      - name: List Repository Structure
+        run: |
+          echo "Root directory:"
+          dir
+          echo "StockDataWebsite directory:"
+          dir StockDataWebsite
+          echo "StockInfoAPI directory:"
+          dir StockInfoAPI
+          echo "StockScraperV3 directory:"
+          dir StockScraperV3
+
       # Step 2: Set up .NET Core SDK
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
@@ -74,3 +86,4 @@ jobs:
           app-name: 'AlphaStockData' # Replace with your actual App Service name
           slot-name: 'Production'
           package: ./downloaded_publish
+
