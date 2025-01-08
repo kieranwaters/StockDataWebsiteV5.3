@@ -5,21 +5,29 @@ using System.Threading.Tasks;
 
 namespace StockDataWebsite.Controllers
 {
-    [Route("api/companies")]
-    public class StockSearchController : Controller
+    [ApiController]
+    [Route("api/[controller]")] // base route: /api/stocksearch
+    public class StockSearchController : ControllerBase
     {
         private readonly string _connectionString = "Server=localhost\\SQLEXPRESS;Database=StockDataScraperDatabase;Trusted_Connection=True;TrustServerCertificate=True";
-        [HttpGet("search")]
-        public async Task<IActionResult> Search(string query)
+
+        // GET /api/stocksearch/lookup?query=XYZ
+        [HttpGet("lookup")]
+        public async Task<IActionResult> Lookup(string query)
         {
             List<CompanySuggestion> suggestions = new List<CompanySuggestion>();
+
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
-                var command = new SqlCommand(@"SELECT TOP 10 CompanyName, CompanySymbol 
-                                       FROM CompaniesList
-                                       WHERE CompanyName LIKE @Query OR CompanySymbol LIKE @Query", connection);
+                var command = new SqlCommand(@"
+                    SELECT TOP 10 CompanyName, CompanySymbol
+                    FROM CompaniesList
+                    WHERE CompanyName LIKE @Query OR CompanySymbol LIKE @Query
+                ", connection);
+
                 command.Parameters.AddWithValue("@Query", "%" + query + "%");
+
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
@@ -32,8 +40,10 @@ namespace StockDataWebsite.Controllers
                     }
                 }
             }
+
             return Ok(suggestions);
         }
+
         public class CompanySuggestion
         {
             public string CompanyName { get; set; }

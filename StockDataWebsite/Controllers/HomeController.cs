@@ -54,5 +54,6 @@ namespace StockDataWebsite.Controllers
             // Redirect to StockDataController's StockData action
             return RedirectToAction("StockData", "StockData", new { companyName = CompanySearch });
         }
+
     }
 }
