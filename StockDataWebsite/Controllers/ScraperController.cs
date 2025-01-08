@@ -29,7 +29,7 @@ namespace StockDataWebsite.Controllers
     }
     public class ScraperController : Controller
     {
-        private readonly string ConnectionString = "Server=DESKTOP-SI08RN8\\SQLEXPRESS;Database=StockDataScraperDatabase;Integrated Security=True;";
+        private readonly string ConnectionString = "Server=tcp:alphastockdata.database.windows.net,1433;Initial Catalog=StockDataScraperDatabase;Persist Security Info=False;Authentication=Active Directory Managed Identity;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;";
         private readonly XBRLElementData _xbrlScraperService;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ScraperController> _logger;
