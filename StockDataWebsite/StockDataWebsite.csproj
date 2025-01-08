@@ -80,6 +80,9 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.8" />
 		<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.7" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Selenium.Support" Version="4.27.0" />
+		<PackageReference Include="Selenium.WebDriver" Version="4.27.0" />
+		<PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="131.0.6778.26400" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
 		<PackageReference Include="YahooFinanceApi" Version="2.3.3" />
 	</ItemGroup>
@@ -94,6 +97,9 @@
 	  </Reference>
 	  <Reference Include="StockScraperV3">
 	    <HintPath>..\..\..\..\Documents\repos\StockScraperV3\StockScraperV3\obj\Release\net8.0\StockScraperV3.dll</HintPath>
+	  </Reference>
+	  <Reference Include="WebDriver">
+	    <HintPath>..\..\..\..\.nuget\packages\selenium.webdriver\4.27.0\lib\net8.0\WebDriver.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 </Project>
