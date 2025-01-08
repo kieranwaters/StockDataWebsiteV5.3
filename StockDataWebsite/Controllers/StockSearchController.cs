@@ -8,7 +8,7 @@ namespace StockDataWebsite.Controllers
     [Route("api/companies")]
     public class StockSearchController : Controller
     {
-        private readonly string _connectionString = "Server=tcp:alphastockdata.database.windows.net,1433;Initial Catalog=StockDataScraperDatabase;Persist Security Info=False;Authentication=Active Directory Managed Identity;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;";
+        private readonly string _connectionString = "Server=localhost\\SQLEXPRESS;Database=StockDataScraperDatabase;Trusted_Connection=True;TrustServerCertificate=True";
         [HttpGet("search")]
         public async Task<IActionResult> Search(string query)
         {
