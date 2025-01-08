@@ -4,15 +4,21 @@
 // REARRANGE THE ORDER OF OPERATIONS STATEMENT IN PLACE OF INCOME STATEMENT IF IT IS PRESENT
 // iNTEGRATE THE SCALING FACTORS INTO THE REPORTS ON THE STOCKDATA PAGE
 
-
-
-
-
 //using Microsoft.EntityFrameworkCore;
 //using StockDataWebsite.Data;
 //using StockScraperV3; // Added to reference XBRLElementData
 
 //var builder = WebApplication.CreateBuilder(args);
+
+//// Configure Kestrel to listen on port 80 (HTTP) and 443 (HTTPS) on all network interfaces
+//builder.WebHost.ConfigureKestrel(options =>
+//{
+//    options.ListenAnyIP(80); // HTTP
+//    options.ListenAnyIP(443, listenOptions =>
+//    {
+//        listenOptions.UseHttps(); // Requires a valid SSL certificate
+//    });
+//});
 
 //// Add services to the container
 //builder.Services.AddControllersWithViews();
@@ -27,6 +33,8 @@
 //builder.Services.AddScoped<XBRLElementData>(provider =>
 //    new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
 //);
+//// 
+////
 //builder.Services.AddTransient<URL>(provider =>
 //{
 //    var configuration = provider.GetRequiredService<IConfiguration>();
@@ -34,6 +42,7 @@
 //    return new URL(connectionString);
 //});
 //builder.Services.AddHttpContextAccessor();
+
 //// Add distributed memory cache and session
 //builder.Services.AddSingleton<TwelveDataService>(sp => new TwelveDataService(
 //    new HttpClient(),
@@ -80,15 +89,18 @@ using StockScraperV3; // Added to reference XBRLElementData
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Kestrel to listen on port 80 (HTTP) and 443 (HTTPS) on all network interfaces
-builder.WebHost.ConfigureKestrel(options =>
+// Conditional Kestrel configuration
+if (builder.Environment.IsProduction())
 {
-    options.ListenAnyIP(80); // HTTP
-    options.ListenAnyIP(443, listenOptions =>
+    builder.WebHost.ConfigureKestrel(options =>
     {
-        listenOptions.UseHttps(); // Requires a valid SSL certificate
+        options.ListenAnyIP(80); // HTTP
+        options.ListenAnyIP(443, listenOptions =>
+        {
+            listenOptions.UseHttps(); // Requires a valid SSL certificate
+        });
     });
-});
+}
 
 // Add services to the container
 builder.Services.AddControllersWithViews();
@@ -103,14 +115,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<XBRLElementData>(provider =>
     new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
-// 
-//
+
 builder.Services.AddTransient<URL>(provider =>
 {
     var configuration = provider.GetRequiredService<IConfiguration>();
     var connectionString = configuration.GetConnectionString("StockDataScraperDatabase");
     return new URL(connectionString);
 });
+
 builder.Services.AddHttpContextAccessor();
 
 // Add distributed memory cache and session
@@ -152,6 +164,5 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
-
 
 
