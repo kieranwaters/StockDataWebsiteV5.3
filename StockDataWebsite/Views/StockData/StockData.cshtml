@@ -22,6 +22,19 @@
         return System.Text.RegularExpressions.Regex.Replace(elementName, "(?<!^)([A-Z])", " $1");
     }
 }
+@{
+    ViewData["Title"] = $"{Model.CompanyName} ";
+    // Generate the scope of years dynamically inline
+    string yearScope = "latest financial years";
+    if (Model.FinancialYears != null && Model.FinancialYears.Any())
+    {
+        var years = Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Distinct().ToList();
+        if (years.Count == 1) { yearScope = years.First(); }
+        else if (years.Count > 1) { yearScope = $"{years.First()} to {years.Last()}"; }
+    }
+    // Create the meta description inline
+    ViewData["Description"] = $"View comprehensive stock data for {Model.CompanyName} ({Model.CompanySymbol}). Explore financial results spanning {yearScope}, including annual and quarterly reports.";
+}
 
 <body>
     <div class="viewport">

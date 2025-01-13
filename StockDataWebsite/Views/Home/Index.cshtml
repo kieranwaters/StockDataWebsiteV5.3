@@ -1,7 +1,10 @@
-﻿@{
+﻿@model StockDataWebsite.Models.CompanySelection
+@{
     ViewData["Title"] = "Home Page";
+
+    // Set the meta description
+    ViewData["Description"] = "Search our database for US stock data. Access over 60 million pieces of free stock data with historical financial information, including annual and quarterly data going back 10 years.";
 }
-@model StockDataWebsite.Models.CompanySelection
 <h2>Select a Company for Financial Data</h2>
 <form asp-action="SearchResults" method="get"><div class="form-group"><label for="CompanySearch">Search by Company Name or Symbol</label><input type="text" class="form-control" id="CompanySearch" name="CompanySearch" placeholder="Enter company name or symbol" required /><div id="suggestions" class="list-group"></div></div><button type="submit" class="btn btn-primary custom-margin">Search</button></form>
 <h3>All Companies</h3>

@@ -85,7 +85,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using StockDataWebsite.Data;
-using StockScraperV3; // Added to reference XBRLElementData
+using StockScraperV3; // Reference to XBRLElementData
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -156,22 +156,21 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers(); // attribute routing
-    endpoints.MapControllerRoute(
-        name: "default",
-        pattern: "{controller=Home}/{action=Index}/{id?}");
-});
-
-
 app.UseAuthorization();
 
-// Set default route to ScraperController
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+// Map attribute-routed controllers
+app.MapControllers();
 
+// Map conventional default route
+app.MapDefaultControllerRoute();
+
+// No need for additional MapControllerRoute
+// Remove or comment out the following if present
+// app.MapControllerRoute(
+//     name: "default",
+//     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Run the application
 app.Run();
 
 
