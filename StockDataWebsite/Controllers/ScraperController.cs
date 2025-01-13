@@ -47,6 +47,42 @@ namespace StockDataWebsite.Controllers
             _logger = logger;
             _urlService = urlService; // Assign to private field
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken] // Ensures CSRF protection
+        public async Task<IActionResult> ScrapeAllCompanies()
+        {
+            try
+            {
+                _logger.LogInformation("ScrapeAllCompanies action triggered.");
+
+                // Start the scraping process asynchronously
+                // Option 1: Run synchronously and wait (may block the request)
+                // var result = await URL.ScrapeLast6MonthsForAllCompaniesAsync();
+
+                // Option 2: Run in the background to avoid blocking
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await URL.ScrapeLast6MonthsForAllCompaniesAsync();
+                        _logger.LogInformation("ScrapeAllCompanies completed successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "ScrapeAllCompanies encountered an error.");
+                        // Optionally, implement retry logic or alerting mechanisms
+                    }
+                });
+
+                // Immediately return a response to the user
+                return Json(new { success = true, message = "Scraping for all companies has started." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred in ScrapeAllCompanies.");
+                return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
+        }
         [HttpGet]
         public IActionResult Index()
         {
@@ -322,6 +358,25 @@ namespace StockDataWebsite.Controllers
                 return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
             }
         }
+        [HttpPost]
+        public async Task<IActionResult> Scrape(CompanySelection company, bool onlyLast6Months)
+        {
+            Console.WriteLine("Scrape action called");
+
+            if (string.IsNullOrEmpty(company.CompanySymbol))
+            {
+                Console.WriteLine("CompanySymbol is null or empty");
+                return View("Index"); // or return an error message
+            }
+
+            // Proceed with the scraping process
+            var result = await URL.ScrapeReportsForCompanyAsync(company.CompanySymbol, onlyLast6Months);
+            ViewBag.Result = result;
+
+            // Return a result view or redirect
+            return View("Result");
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> Scrape(CompanySelection company)
