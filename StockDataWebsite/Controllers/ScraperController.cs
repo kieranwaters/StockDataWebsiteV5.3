@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using OpenQA.Selenium.Chrome;
 using StockDataWebsite.Data;
 using StockDataWebsite.Models;
 using StockScraperV3;
@@ -49,6 +50,127 @@ namespace StockDataWebsite.Controllers
         }
         [HttpPost]
         [ValidateAntiForgeryToken] // Ensures CSRF protection
+       
+        public async Task<IActionResult> ScrapeAllOTCUnscraped()
+        {
+            try
+            {
+                _logger.LogInformation("ScrapeAllOTCUnscraped triggered.");
+
+                // 1) Get unscraped companies
+                var unscrapedCompanies = await OTC.GetUnscrapedCompaniesFromDatabase(ConnectionString);
+                if (unscrapedCompanies.Count == 0)
+                {
+                    return Json(new { success = false, message = "No unscraped OTC companies found." });
+                }
+
+                _logger.LogInformation($"Found {unscrapedCompanies.Count} unscraped OTC companies.");
+
+                // 2) Prepare our DataNonStatic for storing results
+                var dataNonStatic = new DataNonStatic();
+
+                // 3) Use ONE ChromeDriver to process them sequentially
+                using (var driver = new ChromeDriver())
+                {
+                    foreach (var (cid, cname, csymbol) in unscrapedCompanies)
+                    {
+                        try
+                        {
+                            _logger.LogInformation($"Starting scrape for: {cname} ({csymbol}).");
+                            (int, string, string) companyTuple = (cid, cname, csymbol);
+                            await OTC.ScrapeOTCCompanyAsync(companyTuple, driver, dataNonStatic);
+                            _logger.LogInformation($"Successfully scraped: {cname} ({csymbol}).");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"Error scraping {cname} ({csymbol}): {ex.Message}");
+                            // Optionally, log stack trace or additional details
+                        }
+                    }
+                }
+
+                // 4) Save all parsed data to the database
+                // Iterate through each company and save their entries
+                foreach (var (cid, cname, csymbol) in unscrapedCompanies)
+                {
+                    try
+                    {
+                        await dataNonStatic.SaveAllEntriesToDatabaseAsync(cid);
+                        _logger.LogInformation($"Successfully saved financial data for: {cname} ({csymbol}).");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error saving data for {cname} ({csymbol}): {ex.Message}");
+                        // Optionally, handle specific cases or continue
+                    }
+                }
+
+                return Json(new { success = true, message = $"Scraping completed for {unscrapedCompanies.Count} unscraped companies." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ScrapeAllOTCUnscraped encountered an error.");
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ScrapeOTCFinancialsSingle(string symbol)
+        {
+            try
+            {
+                // Retrieve company details from the database based on the symbol
+                string getCompanyQuery = @"
+                    SELECT CompanyID, CompanyName, CompanySymbol
+                    FROM CompaniesList
+                    WHERE CompanySymbol = @CompanySymbol";
+
+                int companyId;
+                string companyName;
+                string companySymbol;
+
+                using (var conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(getCompanyQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@CompanySymbol", symbol);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (!await reader.ReadAsync())
+                            {
+                                return Json(new { success = false, message = $"Company with symbol '{symbol}' not found." });
+                            }
+
+                            companyId = reader.GetInt32(reader.GetOrdinal("CompanyID"));
+                            companyName = reader.GetString(reader.GetOrdinal("CompanyName"));
+                            companySymbol = reader.GetString(reader.GetOrdinal("CompanySymbol"));
+                        }
+                    }
+                }
+
+                var dataNonStatic = new DataNonStatic();
+
+                using (var driver = new ChromeDriver())
+                {
+                    (int, string, string) companyTuple = (companyId, companyName, companySymbol);
+                    await OTC.ScrapeOTCCompanyAsync(companyTuple, driver, dataNonStatic);
+                }
+
+                // Save the scraped data
+                await dataNonStatic.SaveAllEntriesToDatabaseAsync(companyId);
+
+                return Json(new { success = true, message = $"Scrape completed for {symbol}" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ScrapeOTCFinancialsSingle encountered an error.");
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ScrapeAllCompanies()
         {
             try
@@ -376,8 +498,6 @@ namespace StockDataWebsite.Controllers
             // Return a result view or redirect
             return View("Result");
         }
-
-
         [HttpPost]
         public async Task<IActionResult> Scrape(CompanySelection company)
         {
@@ -394,8 +514,6 @@ namespace StockDataWebsite.Controllers
             ViewBag.Result = result;
             return View("Result");
         }
-        
-
         // New action to trigger XBRL data parsing and saving
         [HttpPost]
         [ValidateAntiForgeryToken] // Ensures CSRF protection
@@ -419,4 +537,5 @@ namespace StockDataWebsite.Controllers
         }
 
     }
+
 }
