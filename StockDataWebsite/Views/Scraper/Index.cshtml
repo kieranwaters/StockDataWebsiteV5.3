@@ -1,50 +1,37 @@
 ﻿@model StockDataWebsite.Models.CompanySelection
-
 @{
     ViewData["Title"] = "Scraper Page";
 }
-
 @functions {
     public bool IsUserAdmin()
     {
         // Example logic: read "Username" from session
         var username = Context.Session.GetString("Username");
-        if (string.IsNullOrEmpty(username))
-            return false;
-
+        if (string.IsNullOrEmpty(username)) return false;
         // TODO: Fetch the user from DB or from session
         // e.g. var user = _context.Users.FirstOrDefault(u => u.Username == username);
         // return user != null && user.Admin;
-
         // TEMPORARY stub: for demonstration only
         // Return 'true' or 'false' based on your actual logic
         return false;
     }
 }
-
 <h2>Select a Company for SEC Reports</h2>
-
 <!-- Display the total number of scraped and unscraped companies -->
 <h4>Total number of scraped companies in database: <span id="scrapedCompaniesCount">Loading...</span></h4>
 <h4>Total number of unscraped companies: <span id="unscrapedCompaniesCount">Loading...</span></h4>
-
 <form asp-action="Scrape" method="post">
     <div class="form-group">
         <label for="CompanySearch">Search by Company Name or Symbol</label>
-        <input type="text" class="form-control" id="CompanySearch" asp-for="CompanyName"
-               placeholder="Enter company name or symbol" autocomplete="off" required />
+        <input type="text" class="form-control" id="CompanySearch" asp-for="CompanyName" placeholder="Enter company name or symbol" autocomplete="off" required />
         <input type="hidden" asp-for="CompanySymbol" />
         <div id="suggestions" class="list-group"></div>
     </div>
-
     <!-- NEW: Checkbox for only last 6 months -->
     <div class="form-check">
         <input class="form-check-input" type="checkbox" value="true" id="OnlyLast6Months" name="onlyLast6Months">
-        <label class="form-check-label" for="OnlyLast6Months">
-            Parse only newly added reports for the last 6 months
-        </label>
+        <label class="form-check-label" for="OnlyLast6Months">Parse only newly added reports for the last 6 months</label>
     </div>
-
     <div class="form-group mt-3">
         <label for="selectedCompaniesList">Selected Companies</label>
         <ul id="selectedCompaniesList" class="list-group">
@@ -57,41 +44,30 @@
             }
         </ul>
     </div>
-
     <!-- Button to remove a selected company from the list -->
     <button type="button" id="removeCompany" class="btn btn-danger custom-margin">Remove Selected Company</button>
-
-    <button type="submit" class="btn btn-primary custom-margin">Scrape Reports</button>
+    <button type="submit" class="btn btn-primary custom-margin">Scrape SEC Reports for Selected Company</button>
 </form>
-
 <div asp-validation-summary="ModelOnly" class="text-danger"></div> <!-- Model-wide validation errors -->
 <!-- Form for fetching stock info -->
 <form asp-action="FetchStockInfo" asp-controller="StockInfo" method="post">
-    <button type="submit" class="btn btn-primary custom-margin">Update CompaniesList.dbo</button>
+    <button type="submit" class="btn btn-primary custom-margin">Update SEC Company List in dbo.CompaniesList</button>
 </form>
-
 <!-- Buttons for scraping reports -->
 <div class="mt-3">
     <!-- Button to scrape unscraped reports -->
-    <button id="scrapeUnscrapedReports" class="btn btn-primary custom-margin">Scrape Unscraped Reports</button>
-
+    <button id="scrapeUnscrapedReports" class="btn btn-primary custom-margin">Scrape Unscraped SEC Reports</button>
     <!-- Button to continue scraping reports -->
-    <button id="continueScrapingReports" class="btn btn-secondary custom-margin">Continue Scraping Reports</button>
-
-    <button id="countNumericalValuesBtn" class="btn btn-info custom-margin">Count Numerical Values</button>
+    <button id="continueScrapingReports" class="btn btn-secondary custom-margin">Continue Scraping SEC Reports</button>
+    <button id="countNumericalValuesBtn" class="btn btn-info custom-margin">Count Numerical Values in dbo.FinancialData</button>
     <div id="countResult" class="mt-2"></div>
-
-    <button id="scrapeOTCButton" class="btn btn-info custom-margin">Scrape OTC</button>
+    <button id="scrapeOTCButton" class="btn btn-info custom-margin">Scrape OTC Reports</button>
     <div id="scrapeOTCResult" class="mt-2"></div>
-
     <!-- Button to parse and save XBRL data -->
     <button id="parseXbrlBtn" class="btn btn-success custom-margin">Parse and Save XBRL Name Data</button>
     <div id="parseXbrlResult" class="mt-2"></div>
-    <div id="parseXbrlLoading" class="spinner-border text-primary mt-2" role="status" style="display: none;">
-        <span class="sr-only">Loading...</span>
-    </div>
+    <div id="parseXbrlLoading" class="spinner-border text-primary mt-2" role="status" style="display: none;"><span class="sr-only">Loading...</span></div>
 </div>
-
 <!-- NEW: Button to scrape all companies -->
 <div class="mt-3">
     <button id="scrapeAllCompaniesBtn" class="btn btn-danger custom-margin">Scrape All Companies</button>
@@ -99,53 +75,45 @@
     <button id="scrapeAllOtcUnscrapedBtn" class="btn btn-warning custom-margin">Scrape All Unscraped OTC</button>
     <div id="scrapeAllOtcUnscrapedResult" class="mt-2"></div>
 </div>
-
 <!-- New Section: Extract and Display Unique XBRL Elements -->
 <div class="mt-3">
     <button id="extractXbrlElementsBtn" class="btn btn-warning custom-margin">Extract Unique XBRL Elements</button>
     <div id="uniqueXbrlElementsResult" class="mt-3"></div>
 </div>
-
+<!-- NEW: Button to scrape all OTC companies -->
+<div class="mt-3">
+    <button id="scrapeAllOtcCompaniesBtn" class="btn btn-primary custom-margin">Scrape All OTC Company Names and insert in dbo.CompaniesList</button>
+    <div id="scrapeAllOtcCompaniesResult" class="mt-2"></div>
+</div>
 @if (ViewBag.Result != null)
 {
-    <div class="alert alert-success mt-3">
-        @ViewBag.Result
-    </div>
+    <div class="alert alert-success mt-3">@ViewBag.Result</div>
 }
-
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Function to fetch and display company counts
+        document.addEventListener("DOMContentLoaded", function() {
             function loadCompanyCounts() {
                 fetch('/api/companies/counts')
-                    .then(response => response.json())
-                    .then(data => {
-                        document.getElementById('scrapedCompaniesCount').textContent = data.scrapedCompaniesCount;
-                        document.getElementById('unscrapedCompaniesCount').textContent = data.unscrapedCompaniesCount;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching counts:', error);
-                        document.getElementById('scrapedCompaniesCount').textContent = 'Error';
-                        document.getElementById('unscrapedCompaniesCount').textContent = 'Error';
-                    });
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('scrapedCompaniesCount').textContent = data.scrapedCompaniesCount;
+                    document.getElementById('unscrapedCompaniesCount').textContent = data.unscrapedCompaniesCount;
+                })
+                .catch(error => {
+                    console.error('Error fetching counts:', error);
+                    document.getElementById('scrapedCompaniesCount').textContent = 'Error';
+                    document.getElementById('unscrapedCompaniesCount').textContent = 'Error';
+                });
             }
-
-            // Initial load of company counts
             loadCompanyCounts();
-
-            // Handle Scrape Unscraped Reports button
             const scrapeButton = document.getElementById('scrapeUnscrapedReports');
             let isScraping = false;
-
-            scrapeButton.addEventListener('click', function () {
+            scrapeButton.addEventListener('click', function() {
                 if (!isScraping) {
                     isScraping = true;
                     scrapeButton.textContent = 'Stop Scraping';
                     scrapeButton.classList.remove('btn-primary');
                     scrapeButton.classList.add('btn-danger');
-
-                    // Start scraping via API
                     fetch('/Scraper/ScrapeUnscrapedReports', {
                         method: 'POST',
                         headers: {
@@ -153,39 +121,36 @@
                             'RequestVerificationToken': getAntiForgeryToken()
                         }
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                const messageContainer = document.createElement('div');
-                                messageContainer.classList.add('alert', 'alert-success', 'mt-3');
-                                messageContainer.textContent = data.message;
-                                scrapeButton.parentElement.appendChild(messageContainer);
-                            } else {
-                                const errorContainer = document.createElement('div');
-                                errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                                errorContainer.textContent = data.message;
-                                scrapeButton.parentElement.appendChild(errorContainer);
-                            }
-
-                            scrapeButton.textContent = 'Scrape Unscraped Reports';
-                            scrapeButton.classList.remove('btn-danger');
-                            scrapeButton.classList.add('btn-primary');
-                            isScraping = false;
-                            loadCompanyCounts();
-                        })
-                        .catch(error => {
-                            console.error('Error during scraping:', error);
-
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const messageContainer = document.createElement('div');
+                            messageContainer.classList.add('alert','alert-success','mt-3');
+                            messageContainer.textContent = data.message;
+                            scrapeButton.parentElement.appendChild(messageContainer);
+                        } else {
                             const errorContainer = document.createElement('div');
-                            errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                            errorContainer.textContent = 'An error occurred during scraping.';
+                            errorContainer.classList.add('alert','alert-danger','mt-3');
+                            errorContainer.textContent = data.message;
                             scrapeButton.parentElement.appendChild(errorContainer);
-
-                            scrapeButton.textContent = 'Scrape Unscraped Reports';
-                            scrapeButton.classList.remove('btn-danger');
-                            scrapeButton.classList.add('btn-primary');
-                            isScraping = false;
-                        });
+                        }
+                        scrapeButton.textContent = 'Scrape Unscraped Reports';
+                        scrapeButton.classList.remove('btn-danger');
+                        scrapeButton.classList.add('btn-primary');
+                        isScraping = false;
+                        loadCompanyCounts();
+                    })
+                    .catch(error => {
+                        console.error('Error during scraping:', error);
+                        const errorContainer = document.createElement('div');
+                        errorContainer.classList.add('alert','alert-danger','mt-3');
+                        errorContainer.textContent = 'An error occurred during scraping.';
+                        scrapeButton.parentElement.appendChild(errorContainer);
+                        scrapeButton.textContent = 'Scrape Unscraped Reports';
+                        scrapeButton.classList.remove('btn-danger');
+                        scrapeButton.classList.add('btn-primary');
+                        isScraping = false;
+                    });
                 } else {
                     alert('Scraping process stopped by user.');
                     scrapeButton.textContent = 'Scrape Unscraped Reports';
@@ -194,18 +159,14 @@
                     isScraping = false;
                 }
             });
-
-            // Handle Continue Scraping Reports button
             const continueScrapeButton = document.getElementById('continueScrapingReports');
             let isContinuingScraping = false;
-
-            continueScrapeButton.addEventListener('click', function () {
+            continueScrapeButton.addEventListener('click', function() {
                 if (!isContinuingScraping) {
                     isContinuingScraping = true;
                     continueScrapeButton.textContent = 'Pause Scraping';
                     continueScrapeButton.classList.remove('btn-secondary');
                     continueScrapeButton.classList.add('btn-warning');
-
                     fetch('/Scraper/ContinueScrapingUnscrapedReports', {
                         method: 'POST',
                         headers: {
@@ -213,39 +174,36 @@
                             'RequestVerificationToken': getAntiForgeryToken()
                         }
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                const messageContainer = document.createElement('div');
-                                messageContainer.classList.add('alert', 'alert-success', 'mt-3');
-                                messageContainer.textContent = data.message;
-                                continueScrapeButton.parentElement.appendChild(messageContainer);
-                            } else {
-                                const errorContainer = document.createElement('div');
-                                errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                                errorContainer.textContent = data.message;
-                                continueScrapeButton.parentElement.appendChild(errorContainer);
-                            }
-
-                            continueScrapeButton.textContent = 'Continue Scraping Reports';
-                            continueScrapeButton.classList.remove('btn-warning');
-                            continueScrapeButton.classList.add('btn-secondary');
-                            isContinuingScraping = false;
-                            loadCompanyCounts();
-                        })
-                        .catch(error => {
-                            console.error('Error during continuing scraping:', error);
-
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const messageContainer = document.createElement('div');
+                            messageContainer.classList.add('alert','alert-success','mt-3');
+                            messageContainer.textContent = data.message;
+                            continueScrapeButton.parentElement.appendChild(messageContainer);
+                        } else {
                             const errorContainer = document.createElement('div');
-                            errorContainer.classList.add('alert', 'alert-danger', 'mt-3');
-                            errorContainer.textContent = 'An error occurred during continuing scraping.';
+                            errorContainer.classList.add('alert','alert-danger','mt-3');
+                            errorContainer.textContent = data.message;
                             continueScrapeButton.parentElement.appendChild(errorContainer);
-
-                            continueScrapeButton.textContent = 'Continue Scraping Reports';
-                            continueScrapeButton.classList.remove('btn-warning');
-                            continueScrapeButton.classList.add('btn-secondary');
-                            isContinuingScraping = false;
-                        });
+                        }
+                        continueScrapeButton.textContent = 'Continue Scraping Reports';
+                        continueScrapeButton.classList.remove('btn-warning');
+                        continueScrapeButton.classList.add('btn-secondary');
+                        isContinuingScraping = false;
+                        loadCompanyCounts();
+                    })
+                    .catch(error => {
+                        console.error('Error during continuing scraping:', error);
+                        const errorContainer = document.createElement('div');
+                        errorContainer.classList.add('alert','alert-danger','mt-3');
+                        errorContainer.textContent = 'An error occurred during continuing scraping.';
+                        continueScrapeButton.parentElement.appendChild(errorContainer);
+                        continueScrapeButton.textContent = 'Continue Scraping Reports';
+                        continueScrapeButton.classList.remove('btn-warning');
+                        continueScrapeButton.classList.add('btn-secondary');
+                        isContinuingScraping = false;
+                    });
                 } else {
                     alert('Continuing scraping process paused by user.');
                     continueScrapeButton.textContent = 'Continue Scraping Reports';
@@ -256,15 +214,13 @@
             });
             const scrapeAllOtcUnscrapedBtn = document.getElementById('scrapeAllOtcUnscrapedBtn');
             const scrapeAllOtcUnscrapedResult = document.getElementById('scrapeAllOtcUnscrapedResult');
-
-            scrapeAllOtcUnscrapedBtn.addEventListener('click', function () {
+            scrapeAllOtcUnscrapedBtn.addEventListener('click', function() {
                 if (!confirm('Scrape all OTC companies that have no FinancialData? This may take a while.')) {
                     return;
                 }
                 scrapeAllOtcUnscrapedBtn.disabled = true;
                 scrapeAllOtcUnscrapedBtn.textContent = 'Scraping...';
                 scrapeAllOtcUnscrapedResult.innerHTML = '<span class="text-info">Please wait while we scrape unscraped OTC companies...</span>';
-
                 fetch('/Scraper/ScrapeAllOTCUnscraped', {
                     method: 'POST',
                     headers: {
@@ -290,22 +246,18 @@
                     scrapeAllOtcUnscrapedBtn.textContent = 'Scrape All Unscraped OTC';
                 });
             });
-
             function getAntiForgeryToken() {
                 const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
                 return tokenElement ? tokenElement.value : '';
             }
-            // Handle Parse and Save XBRL Data button
             const parseXbrlBtn = document.getElementById('parseXbrlBtn');
             const parseXbrlResult = document.getElementById('parseXbrlResult');
             const parseXbrlLoading = document.getElementById('parseXbrlLoading');
-
-            parseXbrlBtn.addEventListener('click', function () {
+            parseXbrlBtn.addEventListener('click', function() {
                 const button = this;
                 button.disabled = true;
                 parseXbrlLoading.style.display = 'inline-block';
                 parseXbrlResult.innerHTML = 'Processing...';
-
                 fetch('/Scraper/ParseAndSaveXbrlData', {
                     method: 'POST',
                     headers: {
@@ -314,42 +266,34 @@
                     },
                     body: JSON.stringify({})
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            parseXbrlResult.innerHTML = `<span class="text-success">${data.message}</span>`;
-                        } else {
-                            parseXbrlResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        parseXbrlResult.innerHTML = '<span class="text-danger">An unexpected error occurred.</span>';
-                    })
-                    .finally(() => {
-                        button.disabled = false;
-                        parseXbrlLoading.style.display = 'none';
-                    });
-            });
-
-            // Handle Count Numerical Values button
-            const countNumericalValuesBtn = document.getElementById('countNumericalValuesBtn');
-            const countResult = document.getElementById('countResult');
-
-            countNumericalValuesBtn.addEventListener('click', function () {
-                countNumericalValuesBtn.disabled = true;
-                countResult.innerHTML = '<span class="text-info">Counting numerical values...</span>';
-
-                fetch('/Scraper/CountNumericalValues', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        parseXbrlResult.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    } else {
+                        parseXbrlResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
                     }
                 })
+                .catch(error => {
+                    console.error('Error:', error);
+                    parseXbrlResult.innerHTML = '<span class="text-danger">An unexpected error occurred.</span>';
+                })
+                .finally(() => {
+                    button.disabled = false;
+                    parseXbrlLoading.style.display = 'none';
+                });
+            });
+            const countNumericalValuesBtn = document.getElementById('countNumericalValuesBtn');
+            const countResult = document.getElementById('countResult');
+            countNumericalValuesBtn.addEventListener('click', function() {
+                countNumericalValuesBtn.disabled = true;
+                countResult.innerHTML = '<span class="text-info">Counting numerical values...</span>';
+                fetch('/Scraper/CountNumericalValues', {
+                    method: 'GET',
+                    headers: {'Content-Type': 'application/json'}
+                })
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Server error: ${response.statusText}`);
-                    }
+                    if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
                     return response.json();
                 })
                 .then(data => {
@@ -367,20 +311,14 @@
                     countNumericalValuesBtn.disabled = false;
                 });
             });
-
-            // Handle Extract and Display Unique XBRL Elements button
             const extractXbrlElementsBtn = document.getElementById('extractXbrlElementsBtn');
             const uniqueXbrlElementsResult = document.getElementById('uniqueXbrlElementsResult');
-
-            extractXbrlElementsBtn.addEventListener('click', function () {
+            extractXbrlElementsBtn.addEventListener('click', function() {
                 extractXbrlElementsBtn.disabled = true;
                 uniqueXbrlElementsResult.innerHTML = '<span class="text-info">Extracting unique XBRL elements...</span>';
-
                 fetch('/api/scraper/unique-xbrl-elements', {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: {'Content-Type': 'application/json'}
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -408,23 +346,18 @@
                     extractXbrlElementsBtn.disabled = false;
                 });
             });
-
-            // NEW: Handle Scrape All Companies button
             const scrapeAllCompaniesBtn = document.getElementById('scrapeAllCompaniesBtn');
             const scrapeAllCompaniesResult = document.getElementById('scrapeAllCompaniesResult');
             let isScrapingAll = false;
-
-            scrapeAllCompaniesBtn.addEventListener('click', function () {
+            scrapeAllCompaniesBtn.addEventListener('click', function() {
                 if (!isScrapingAll) {
                     if (!confirm('Are you sure you want to scrape reports for ALL companies? This may take a significant amount of time.')) {
                         return;
                     }
-
                     isScrapingAll = true;
                     scrapeAllCompaniesBtn.disabled = true;
                     scrapeAllCompaniesBtn.textContent = 'Scraping All Companies...';
                     scrapeAllCompaniesResult.innerHTML = '<span class="text-info">Scraping all companies in progress...</span>';
-
                     fetch('/Scraper/ScrapeAllCompanies', {
                         method: 'POST',
                         headers: {
@@ -433,115 +366,145 @@
                         },
                         body: JSON.stringify({})
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                scrapeAllCompaniesResult.innerHTML = `<span class="text-success">${data.message}</span>`;
-                            } else {
-                                scrapeAllCompaniesResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error scraping all companies:', error);
-                            scrapeAllCompaniesResult.innerHTML = '<span class="text-danger">An error occurred while scraping all companies.</span>';
-                        })
-                        .finally(() => {
-                            scrapeAllCompaniesBtn.disabled = false;
-                            scrapeAllCompaniesBtn.textContent = 'Scrape All Companies';
-                            isScrapingAll = false;
-                            loadCompanyCounts();
-                        });
-                }
-            });
-
-            // Helper function to get Anti-Forgery Token (if CSRF protection is enabled)
-            function getAntiForgeryToken() {
-                const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
-                return tokenElement ? tokenElement.value : '';
-            }
-
-            // Handle company search input for suggestions
-            const companySearchInput = document.getElementById('CompanySearch');
-            const suggestionsContainer = document.getElementById('suggestions');
-            const selectedCompaniesList = document.getElementById('selectedCompaniesList');
-            const hiddenCompanySymbolInput = document.querySelector('input[name="CompanySymbol"]');
-
-            companySearchInput.addEventListener('input', function () {
-                const query = this.value.trim();
-
-                if (query.length >= 2) {
-                    fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            suggestionsContainer.innerHTML = '';
-                            if (data.length > 0) {
-                                data.forEach(company => {
-                                    const suggestionItem = document.createElement('a');
-                                    suggestionItem.classList.add('list-group-item', 'list-group-item-action');
-                                    suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
-
-                                    suggestionItem.addEventListener('click', function () {
-                                        selectedCompaniesList.innerHTML = '';
-
-                                        const listItem = document.createElement('li');
-                                        listItem.classList.add('list-group-item');
-                                        listItem.textContent = `${company.companyName} (${company.companySymbol})`;
-                                        listItem.dataset.symbol = company.companySymbol;
-                                        selectedCompaniesList.appendChild(listItem);
-
-                                        hiddenCompanySymbolInput.value = company.companySymbol;
-                                        companySearchInput.value = '';
-                                        suggestionsContainer.innerHTML = '';
-                                    });
-                                    suggestionsContainer.appendChild(suggestionItem);
-                                });
-                            } else {
-                                const noResultsItem = document.createElement('div');
-                                noResultsItem.classList.add('list-group-item');
-                                noResultsItem.textContent = 'No results found';
-                                suggestionsContainer.appendChild(noResultsItem);
-                            }
-                        })
-                        .catch(error => console.error('Error fetching suggestions:', error));
-                } else {
-                    suggestionsContainer.innerHTML = '';
-                }
-            });
-
-            // Handle removing the selected company from the list
-            const removeCompanyButton = document.getElementById('removeCompany');
-            removeCompanyButton.addEventListener('click', function () {
-                const selectedCompanyItem = selectedCompaniesList.querySelector('li');
-                if (selectedCompanyItem) {
-                    const companySymbol = selectedCompanyItem.getAttribute('data-symbol');
-                    fetch('/Scraper/RemoveSelectedCompany', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': getAntiForgeryToken()
-                        },
-                        body: JSON.stringify({ companySymbol: companySymbol })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            scrapeAllCompaniesResult.innerHTML = `<span class="text-success">${data.message}</span>`;
+                        } else {
+                            scrapeAllCompaniesResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                        }
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                selectedCompaniesList.removeChild(selectedCompanyItem);
-                                hiddenCompanySymbolInput.value = '';
-                            } else {
-                                alert(data.message);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error removing company:', error);
-                            alert('An error occurred while removing the company.');
-                        });
-                } else {
+                    .catch(error => {
+                        console.error('Error scraping all companies:', error);
+                        scrapeAllCompaniesResult.innerHTML = '<span class="text-danger">An error occurred while scraping all companies.</span>';
+                    })
+                    .finally(() => {
+                        scrapeAllCompaniesBtn.disabled = false;
+                        scrapeAllCompaniesBtn.textContent = 'Scrape All Companies';
+                        isScrapingAll = false;
+                        loadCompanyCounts();
+                    });
+                }
+            });
+            // NEW: Handle Scrape All OTC Companies button
+            const scrapeAllOtcCompaniesBtn = document.getElementById('scrapeAllOtcCompaniesBtn');
+            const scrapeAllOtcCompaniesResult = document.getElementById('scrapeAllOtcCompaniesResult');
+            let isScrapingAllOtc = false;
+            scrapeAllOtcCompaniesBtn.addEventListener('click', function() {
+                if (isScrapingAllOtc) {
+                    alert('Scraping is already in progress.');
+                    return;
+                }
+                if (!confirm('Are you sure you want to scrape ALL OTC companies? This may take a significant amount of time.')) {
+                    return;
+                }
+                isScrapingAllOtc = true;
+                scrapeAllOtcCompaniesBtn.disabled = true;
+                scrapeAllOtcCompaniesBtn.textContent = 'Scraping All OTC Company Names to Add to dbo.CompaniesList...';
+                scrapeAllOtcCompaniesResult.innerHTML = '<span class="text-info">Scraping all OTC companies in progress...</span>';
+                fetch('/Scraper/ScrapeAllOtcCompanies', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    body: JSON.stringify({})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        scrapeAllOtcCompaniesResult.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    } else {
+                        scrapeAllOtcCompaniesResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error scraping all OTC companies:', error);
+                    scrapeAllOtcCompaniesResult.innerHTML = '<span class="text-danger">An error occurred while scraping all OTC companies.</span>';
+                })
+                .finally(() => {
+                    scrapeAllOtcCompaniesBtn.disabled = false;
+                    scrapeAllOtcCompaniesBtn.textContent = 'Scrape All OTC Companies';
+                    isScrapingAllOtc = false;
+                    // Optionally, refresh company counts or other UI elements
+                });
+            });
+            function getAntiForgeryToken(){
+                const tokenElement=document.querySelector('input[name="__RequestVerificationToken"]');
+                return tokenElement?tokenElement.value:'';
+            }
+            // Handle company search input for suggestions
+            const companySearchInput=document.getElementById('CompanySearch');
+            const suggestionsContainer=document.getElementById('suggestions');
+            const selectedCompaniesList=document.getElementById('selectedCompaniesList');
+            const hiddenCompanySymbolInput=document.querySelector('input[name="CompanySymbol"]');
+            companySearchInput.addEventListener('input',function(){
+                const query=this.value.trim();
+                if(query.length>=2){
+                    fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
+                    .then(response=>response.json())
+                    .then(data=>{
+                        suggestionsContainer.innerHTML='';
+                        if(data.length>0){
+                            data.forEach(company=>{
+                                const suggestionItem=document.createElement('a');
+                                suggestionItem.classList.add('list-group-item','list-group-item-action');
+                                suggestionItem.textContent=`${company.companyName} (${company.companySymbol})`;
+                                suggestionItem.addEventListener('click',function(){
+                                    selectedCompaniesList.innerHTML='';
+                                    const listItem=document.createElement('li');
+                                    listItem.classList.add('list-group-item');
+                                    listItem.textContent=`${company.companyName} (${company.companySymbol})`;
+                                    listItem.dataset.symbol=company.companySymbol;
+                                    selectedCompaniesList.appendChild(listItem);
+                                    hiddenCompanySymbolInput.value=company.companySymbol;
+                                    companySearchInput.value='';
+                                    suggestionsContainer.innerHTML='';
+                                });
+                                suggestionsContainer.appendChild(suggestionItem);
+                            });
+                        }
+                        else{
+                            const noResultsItem=document.createElement('div');
+                            noResultsItem.classList.add('list-group-item');
+                            noResultsItem.textContent='No results found';
+                            suggestionsContainer.appendChild(noResultsItem);
+                        }
+                    })
+                    .catch(error=>console.error('Error fetching suggestions:',error));
+                }else{
+                    suggestionsContainer.innerHTML='';
+                }
+            });
+            const removeCompanyButton=document.getElementById('removeCompany');
+            removeCompanyButton.addEventListener('click',function(){
+                const selectedCompanyItem=selectedCompaniesList.querySelector('li');
+                if(selectedCompanyItem){
+                    const companySymbol=selectedCompanyItem.getAttribute('data-symbol');
+                    fetch('/Scraper/RemoveSelectedCompany',{
+                        method:'POST',
+                        headers:{'Content-Type':'application/json','RequestVerificationToken':getAntiForgeryToken()},
+                        body:JSON.stringify({companySymbol:companySymbol})
+                    })
+                    .then(response=>response.json())
+                    .then(data=>{
+                        if(data.success){
+                            selectedCompaniesList.removeChild(selectedCompanyItem);
+                            hiddenCompanySymbolInput.value='';
+                        }else{
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error=>{
+                        console.error('Error removing company:',error);
+                        alert('An error occurred while removing the company.');
+                    });
+                }else{
                     alert('Please select a company to remove.');
                 }
             });
-
             // Reload company counts periodically (e.g., every 5 minutes)
-            setInterval(loadCompanyCounts, 300000);
+            setInterval(loadCompanyCounts,300000);
         });
     </script>
     <script>
@@ -557,8 +520,11 @@
                 })
                 .then(r=>r.json())
                 .then(d=>{
-                    if(d.success){scrapeOTCResult.innerHTML='<span class="text-success">'+d.message+'</span>';}
-                    else{scrapeOTCResult.innerHTML='<span class="text-danger">'+d.message+'</span>';}
+                    if(d.success){
+                        scrapeOTCResult.innerHTML='<span class="text-success">'+d.message+'</span>';
+                    }else{
+                        scrapeOTCResult.innerHTML='<span class="text-danger">'+d.message+'</span>';
+                    }
                 })
                 .catch(e=>{
                     console.error(e);
@@ -571,9 +537,5 @@
             }
         });
     </script>
-
-    <!-- Include Bootstrap JS for better UI (if not already included) -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"
-            integrity="sha384-LtrjvnR4Twt/qOuYx+vQy8haBBN8d1Y5lrogr4+17F6Dz8uK6rfsQbLX7hg/KjMG"
-            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js" integrity="sha384-LtrjvnR4Twt/qOuYx+vQy8haBBN8d1Y5lrogr4+17F6Dz8uK6rfsQbLX7hg/KjMG" crossorigin="anonymous"></script>
 }

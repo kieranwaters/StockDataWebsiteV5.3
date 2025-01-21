@@ -49,8 +49,7 @@ namespace StockDataWebsite.Controllers
             _urlService = urlService; // Assign to private field
         }
         [HttpPost]
-        [ValidateAntiForgeryToken] // Ensures CSRF protection
-       
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ScrapeAllOTCUnscraped()
         {
             try
@@ -69,28 +68,13 @@ namespace StockDataWebsite.Controllers
                 // 2) Prepare our DataNonStatic for storing results
                 var dataNonStatic = new DataNonStatic();
 
-                // 3) Use ONE ChromeDriver to process them sequentially
-                using (var driver = new ChromeDriver())
-                {
-                    foreach (var (cid, cname, csymbol) in unscrapedCompanies)
-                    {
-                        try
-                        {
-                            _logger.LogInformation($"Starting scrape for: {cname} ({csymbol}).");
-                            (int, string, string) companyTuple = (cid, cname, csymbol);
-                            await OTC.ScrapeOTCCompanyAsync(companyTuple, driver, dataNonStatic);
-                            _logger.LogInformation($"Successfully scraped: {cname} ({csymbol}).");
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError($"Error scraping {cname} ({csymbol}): {ex.Message}");
-                            // Optionally, log stack trace or additional details
-                        }
-                    }
-                }
+                // 3) **USE THE PARALLEL SCRAPER** that uses the 5-driver pool
+                //    Instead of single-driver loop
+                await OTC.ScrapeOtcCompaniesInParallelAsync(unscrapedCompanies, dataNonStatic);
+                // ^ This internally spawns up to 5 drivers from ChromeDriverPool
 
                 // 4) Save all parsed data to the database
-                // Iterate through each company and save their entries
+                //    Iterate through each unscraped company and save their entries
                 foreach (var (cid, cname, csymbol) in unscrapedCompanies)
                 {
                     try
@@ -101,7 +85,6 @@ namespace StockDataWebsite.Controllers
                     catch (Exception ex)
                     {
                         _logger.LogError($"Error saving data for {cname} ({csymbol}): {ex.Message}");
-                        // Optionally, handle specific cases or continue
                     }
                 }
 
@@ -513,6 +496,34 @@ namespace StockDataWebsite.Controllers
             var result = await StockScraperV3.URL.ScrapeReportsForCompanyAsync(company.CompanySymbol);
             ViewBag.Result = result;
             return View("Result");
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ScrapeAllOtcCompanies()
+        {
+            try
+            {
+                _logger.LogInformation("ScrapeAllOtcCompanies triggered.");
+
+                // Initialize ChromeDriver with options
+                var chromeOptions = new ChromeOptions();
+                chromeOptions.AddArgument("--headless"); // Run headless if desired
+                chromeOptions.AddArgument("--no-sandbox");
+                chromeOptions.AddArgument("--disable-dev-shm-usage");
+
+                using (var driver = new ChromeDriver(chromeOptions))
+                {
+                    await OTC.ScrapeAllOtcCompaniesAsync(ConnectionString, driver);
+                }
+
+                _logger.LogInformation("ScrapeAllOtcCompanies completed successfully.");
+                return Json(new { success = true, message = "Successfully scraped all OTC companies and stored them in the database." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ScrapeAllOtcCompanies encountered an error.");
+                return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
         }
         // New action to trigger XBRL data parsing and saving
         [HttpPost]

@@ -1,4 +1,4 @@
-﻿@using Newtonsoft.Json
+﻿ @using Newtonsoft.Json
 @model StockDataWebsite.Models.StockDataViewModel
 
 @{
@@ -36,6 +36,28 @@
     ViewData["Description"] = $"View comprehensive stock data for {Model.CompanyName} ({Model.CompanySymbol}). Explore financial results spanning {yearScope}, including annual and quarterly reports.";
 }
 
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>@ViewData["Title"]</title>
+    <style>
+        /* Underline the element names */
+        .element-name {
+            text-decoration: underline;
+        }
+
+        /* Optional: Style for the notice */
+        .click-notice {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #e7f3fe;
+            border: 1px solid #b3d8fd;
+            border-radius: 5px;
+            color: #31708f;
+        }
+    </style>
+</head>
 <body>
     <div class="viewport">
         <h2>Stock Data for @Model.CompanyName (@Model.CompanySymbol)</h2>
@@ -83,6 +105,11 @@
             </div>
         </div>
 
+        <!-- Notice for Clickable Item Names -->
+        <div class="click-notice">
+            <strong>Notice:</strong> You can click on an item name to view its graph.
+        </div>
+
         <!-- Financial Data Table -->
         <div class="horizontal-scroll">
             <table class="table table-striped table-bordered">
@@ -126,8 +153,8 @@
                                                 var isLongName = formattedName.Length > 40;
                                                 var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
                                                 var labels = Model.FinancialYears != null
-                                                    ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
-                                                    : new List<string>();
+                                                ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
+                                                : new List<string>();
                                                 var numericValues = metric.Values?.Select(v => decimal.TryParse(v, out var num) ? num.ToString("N0") : "N/A").Reverse().ToList() ?? new List<string>();
                                             }
                                             @if (isLongName)
@@ -296,3 +323,4 @@
         <script src="~/js/chart.js"></script>
     }
 </body>
+</html>
