@@ -1,326 +1,294 @@
-﻿ @using Newtonsoft.Json
+﻿@using Newtonsoft.Json
 @model StockDataWebsite.Models.StockDataViewModel
 
 @{
+
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // Page title and meta description
     ViewData["Title"] = "Stock Data";
+    ViewData["Description"] = $"View comprehensive stock data for {Model.CompanyName} ({Model.CompanySymbol}), including {Model.DataType} financial reports and historical metrics.";
 }
 
 @functions {
     public string FormatElementName(string elementName)
     {
-        if (string.IsNullOrEmpty(elementName))
-            return elementName;
-
-        // Check if the entire string is uppercase
-        if (elementName.ToUpperInvariant() == elementName)
-        {
-            // If it's fully uppercase, return it as-is without adding spaces
-            return elementName;
-        }
-
-        // Otherwise, insert spaces before each capital letter except the first one
+        if (string.IsNullOrEmpty(elementName)) return elementName;
+        if (elementName.ToUpperInvariant() == elementName) return elementName;
+        // Insert spaces before capitals except the first
         return System.Text.RegularExpressions.Regex.Replace(elementName, "(?<!^)([A-Z])", " $1");
     }
 }
-@{
-    ViewData["Title"] = $"{Model.CompanyName} ";
-    // Generate the scope of years dynamically inline
-    string yearScope = "latest financial years";
-    if (Model.FinancialYears != null && Model.FinancialYears.Any())
-    {
-        var years = Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Distinct().ToList();
-        if (years.Count == 1) { yearScope = years.First(); }
-        else if (years.Count > 1) { yearScope = $"{years.First()} to {years.Last()}"; }
-    }
-    // Create the meta description inline
-    ViewData["Description"] = $"View comprehensive stock data for {Model.CompanyName} ({Model.CompanySymbol}). Explore financial results spanning {yearScope}, including annual and quarterly reports.";
+<h2>Stock Data for @Model.CompanyName (@Model.CompanySymbol)</h2>
+
+@* Conditional display of Latest Price *@
+@if (!string.IsNullOrEmpty(Model.StockPrice) && !Model.StockPrice.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+{
+    <h4>Latest Price: @Model.StockPrice</h4>
 }
 
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8" />
-    <title>@ViewData["Title"]</title>
-    <style>
-        /* Underline the element names */
-        .element-name {
-            text-decoration: underline;
+<form id="addToWatchlistForm" asp-controller="StockData" asp-action="AddToWatchlist" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="stockName" value="@Model.CompanyName" />
+    <input type="hidden" name="stockSymbol" value="@Model.CompanySymbol" />
+    <button type="submit" class="btn btn-primary">Add to Watchlist</button>
+</form>
+
+<div id="feedbackMessage"></div>
+
+<br />
+<!-- Financial Data Toggle Buttons -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Financial Results</h3>
+    <div>
+        <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType="annual" })"
+           class="btn btn-secondary me-2 @(Model.DataType == "annual" ? "active" : "")">Annual Data</a>
+
+        <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType="quarterly" })"
+           class="btn btn-secondary me-2 @(Model.DataType == "quarterly" ? "active" : "")">Quarterly Data</a>
+
+        @if (Model.DataType == "enhanced")
+        {
+            <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType=Model.BaseType })"
+               class="btn btn-secondary @(Model.DataType=="enhanced" ? "active" : "")">Basic Financial Data</a>
         }
-
-        /* Optional: Style for the notice */
-        .click-notice {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #e7f3fe;
-            border: 1px solid #b3d8fd;
-            border-radius: 5px;
-            color: #31708f;
+        else
+        {
+            <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType="enhanced", baseType=Model.DataType })"
+               class="btn btn-secondary @(Model.DataType=="enhanced" ? "active" : "")">Enhanced Financial Data</a>
         }
-    </style>
-</head>
-<body>
-    <div class="viewport">
-        <h2>Stock Data for @Model.CompanyName (@Model.CompanySymbol)</h2>
+    </div>
+</div>
 
-        <!-- Display Stock Price -->
-        <h4>Latest Price: @Model.StockPrice</h4>
+<!-- Tip about clicking items -->
+<div class="alert alert-info" role="alert">
+    <strong>Tip:</strong> You can click on an item name to view its historical graph.
+</div>
 
-        <form id="addToWatchlistForm" asp-controller="StockData" asp-action="AddToWatchlist" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="stockName" value="@Model.CompanyName" />
-            <input type="hidden" name="stockSymbol" value="@Model.CompanySymbol" />
-            <button type="submit" class="btn btn-primary">Add to Watchlist</button>
-        </form>
-
-        <div id="feedbackMessage"></div>
-
-        <!-- Financial Data Toggle Buttons -->
-        <br />
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3>Financial Results</h3>
-            <div>
-                <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "annual" })"
-                   class="btn btn-secondary me-2 @(Model.DataType == "annual" ? "active" : "")">
-                    Annual Data
-                </a>
-                <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "quarterly" })"
-                   class="btn btn-secondary me-2 @(Model.DataType == "quarterly" ? "active" : "")">
-                    Quarterly Data
-                </a>
-
+<!-- Main Financial Table -->
+<div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
                 @if (Model.DataType == "enhanced")
                 {
-                    <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = Model.BaseType })"
-                       class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
-                        Basic Financial Data
-                    </a>
+                    <th class="text-center">Element</th>
                 }
                 else
                 {
-                    <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "enhanced", baseType = Model.DataType })"
-                       class="btn btn-secondary @(Model.DataType == "enhanced" ? "active" : "")">
-                        Enhanced Financial Data
-                    </a>
+                    <th class="text-center">Financial period:</th>
                 }
-            </div>
-        </div>
 
-        <!-- Notice for Clickable Item Names -->
-        <div class="click-notice">
-            <strong>Notice:</strong> You can click on an item name to view its graph.
-        </div>
-
-        <!-- Financial Data Table -->
-        <div class="horizontal-scroll">
-            <table class="table table-striped table-bordered">
-                <thead>
-                    <tr>
-                        @if (Model.DataType == "enhanced")
-                        {
-                            <th class="text-center">Element</th>
-                        }
-                        else
-                        {
-                            <th class="text-center"> </th>
-                        }
-
-                        @if (Model.FinancialYears != null && Model.FinancialYears.Any())
-                        {
-                            foreach (var period in Model.FinancialYears.AsEnumerable().Reverse())
-                            {
-                                <th class="text-center">@period.DisplayName.Replace("Report", "").Trim()</th>
-                            }
-                        }
-                        else
-                        {
-                            <th class="text-center">Period</th>
-                        }
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model.Statements != null && Model.Statements.Any())
+                @if (Model.FinancialYears != null && Model.FinancialYears.Any())
+                {
+                    foreach (var period in Model.FinancialYears.AsEnumerable().Reverse())
                     {
-                        if (Model.DataType == "enhanced")
+                        <th class="text-center">@period.DisplayName.Replace("Report", "").Trim()</th>
+                    }
+                }
+                else
+                {
+                    <th class="text-center">Period</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Statements != null && Model.Statements.Any())
+            {
+                // If the user selected "enhanced" data
+                if (Model.DataType == "enhanced")
+                {
+                    foreach (var statement in Model.Statements)
+                    {
+                        foreach (var metric in statement.DisplayMetrics)
                         {
-                            @foreach (var statement in Model.Statements)
-                            {
-                                foreach (var metric in statement.DisplayMetrics)
+                            <tr>
+                                <td class="align-middle text-nowrap">
+                                    @{
+                                        // Prepare the display name, handle very long names
+                                        var formattedName = FormatElementName(metric.DisplayName ?? "").Replace("(null)", "").Trim();
+                                        var isLongName = (formattedName.Length > 40);
+                                        var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
+
+                                        var labels = Model.FinancialYears?.AsEnumerable()
+                                        .Reverse()
+                                        .Select(fy => fy.DisplayName.Replace("Report", "").Trim())
+                                        .ToList() ?? new List<string>();
+
+                                        var numericValues = metric.Values?.Select(v =>
+                                        decimal.TryParse(v, out var n) ? n.ToString("N0") : "N/A"
+                                        ).Reverse().ToList() ?? new List<string>();
+                                    }
+
+                                    @if (isLongName)
+                                    {
+                                        <span class="element-name text-primary"
+                                              data-full-name="@formattedName"
+                                              data-truncated-name="@displayName"
+                                              data-expanded="false"
+                                              data-metric="@formattedName"
+                                              data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
+                                              data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
+                                              style="cursor:pointer; text-decoration: underline;"
+                                              title="Click to view graph">@displayName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="element-name text-primary"
+                                              data-metric="@formattedName"
+                                              data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
+                                              data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
+                                              style="cursor:pointer; text-decoration: underline;"
+                                              title="Click to view historical data">@formattedName</span>
+                                    }
+                                </td>
+                                @if (metric.Values != null && metric.Values.Any())
                                 {
-                                    <tr>
-                                        <td class="align-middle text-nowrap">
-                                            @{
-                                                var formattedName = FormatElementName(metric.DisplayName ?? "").Replace("(null)", "").Trim();
-                                                var isLongName = formattedName.Length > 40;
-                                                var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
-                                                var labels = Model.FinancialYears != null
-                                                ? Model.FinancialYears.AsEnumerable().Reverse().Select(fy => fy.DisplayName.Replace("Report", "").Trim()).ToList()
-                                                : new List<string>();
-                                                var numericValues = metric.Values?.Select(v => decimal.TryParse(v, out var num) ? num.ToString("N0") : "N/A").Reverse().ToList() ?? new List<string>();
-                                            }
-                                            @if (isLongName)
+                                    foreach (var val in metric.Values.AsEnumerable().Reverse())
+                                    {
+                                        <td class="text-center">
+                                            @if (string.IsNullOrEmpty(val) || val.Equals("N/A", StringComparison.OrdinalIgnoreCase))
                                             {
-                                                <span class="element-name text-primary"
-                                                      data-full-name="@formattedName"
-                                                      data-truncated-name="@displayName"
-                                                      data-expanded="false"
-                                                      data-metric="@formattedName"
-                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
-                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
-                                                      style="cursor: pointer;"
-                                                      title="Click to view graph">@displayName</span>
+                                                @Html.Raw("<span style='color:#ccc;'>N/A</span>")
                                             }
                                             else
                                             {
-                                                <span class="element-name text-primary"
-                                                      data-metric="@formattedName"
-                                                      data-labels='@Html.Raw(JsonConvert.SerializeObject(labels))'
-                                                      data-values='@Html.Raw(JsonConvert.SerializeObject(numericValues))'
-                                                      style="cursor: pointer;"
-                                                      title="Click to view historical data">@formattedName</span>
+                                                @val
                                             }
                                         </td>
-
-                                        @if (metric.Values != null && metric.Values.Any())
-                                        {
-                                            foreach (var value in metric.Values.AsEnumerable().Reverse())
-                                            {
-                                                <td class="text-center">
-                                                    @if (string.IsNullOrEmpty(value) || value == "N/A")
-                                                    {
-                                                        @Html.Raw("<span style='color:#ccc;'>N/A</span>")
-                                                    }
-                                                    else
-                                                    {
-                                                        @value
-                                                    }
-                                                </td>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <td colspan="@((Model.FinancialYears?.Count ?? 0))" class="text-center">N/A</td>
-                                        }
-                                    </tr>
-                                }
-                            }
-                        }
-                        else
-                        {
-                            foreach (var statement in Model.Statements)
-                            {
-                                <tr class="table-primary">
-                                    <td colspan="@((Model.FinancialYears?.Count ?? 0) + 1)">
-                                        <strong>@statement.StatementType</strong>
-                                        @if (!string.IsNullOrEmpty(statement.ScalingLabel))
-                                        {
-                                            <span class="badge bg-info text-dark">(@statement.ScalingLabel)</span>
-                                        }
-                                    </td>
-                                </tr>
-
-                                @if (statement.DisplayMetrics != null && statement.DisplayMetrics.Any())
-                                {
-                                    foreach (var metric in statement.DisplayMetrics)
-                                    {
-                                        <tr>
-                                            <td class="align-middle text-nowrap">
-                                                @{
-                                                    var formattedName = FormatElementName(metric.DisplayName ?? "").Trim();
-                                                    var isLongName = formattedName.Length > 40;
-                                                    var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
-                                                }
-                                                @if (isLongName)
-                                                {
-                                                    <span class="element-name text-primary"
-                                                          data-full-name="@formattedName"
-                                                          data-truncated-name="@displayName"
-                                                          data-expanded="false"
-                                                          data-scaling-label="@statement.ScalingLabel"
-                                                          data-metric="@metric.DisplayName"
-                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
-                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
-                                                          style="cursor: pointer;"
-                                                          title="Click to view graph">@displayName</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="element-name text-primary"
-                                                          data-metric="@metric.DisplayName"
-                                                          data-scaling-label="@statement.ScalingLabel"
-                                                          data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
-                                                          data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
-                                                          style="cursor: pointer;"
-                                                          title="Click to view historical data">@formattedName</span>
-                                                }
-                                            </td>
-
-                                            @if (metric.Values != null && metric.Values.Any())
-                                            {
-                                                foreach (var value in metric.Values.AsEnumerable().Reverse())
-                                                {
-                                                    <td class="text-center">
-                                                        @if (string.IsNullOrEmpty(value) || value == "N/A")
-                                                        {
-                                                            @Html.Raw("<span style='color:#ccc;'>N/A</span>")
-                                                        }
-                                                        else
-                                                        {
-                                                            @value
-                                                        }
-                                                    </td>
-                                                }
-                                            }
-                                            else
-                                            {
-                                                <td colspan="@((Model.FinancialYears?.Count ?? 0))" class="text-center">N/A</td>
-                                            }
-                                        </tr>
                                     }
                                 }
                                 else
                                 {
-                                    <tr>
-                                        <td colspan="@((Model.FinancialYears?.Count ?? 1))" class="text-center text-muted">
-                                            No financial metrics available for this statement.
-                                        </td>
-                                    </tr>
+                                    <td colspan="@((Model.FinancialYears?.Count??0))" class="text-center">
+                                        N/A
+                                    </td>
                                 }
-                            }
+                            </tr>
                         }
                     }
-                    else
+                }
+                else
+                {
+                    // "Basic" (non-enhanced) version
+                    foreach (var statement in Model.Statements)
                     {
-                        <tr><td colspan="@((Model.FinancialYears?.Count ?? 1))">No statements available.</td></tr>
+                        <tr class="table-primary">
+                            <td colspan="@((Model.FinancialYears?.Count??0)+1)">
+                                <strong>@statement.StatementType</strong>
+                                @if (!string.IsNullOrEmpty(statement.ScalingLabel))
+                                {
+                                    <span class="badge bg-info text-dark">
+                                        (@statement.ScalingLabel)
+                                    </span>
+                                }
+                            </td>
+                        </tr>
+                        @if (statement.DisplayMetrics != null && statement.DisplayMetrics.Any())
+                        {
+                            foreach (var metric in statement.DisplayMetrics)
+                            {
+                                <tr>
+                                    <td class="align-middle text-nowrap">
+                                        @{
+                                            var formattedName = FormatElementName(metric.DisplayName ?? "").Trim();
+                                            var isLongName = (formattedName.Length > 40);
+                                            var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
+                                        }
+                                        @if (isLongName)
+                                        {
+                                            <span class="element-name text-primary"
+                                                  data-full-name="@formattedName"
+                                                  data-truncated-name="@displayName"
+                                                  data-expanded="false"
+                                                  data-scaling-label="@statement.ScalingLabel"
+                                                  data-metric="@metric.DisplayName"
+                                                  data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
+                                                  data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
+                                                  style="cursor:pointer; text-decoration: underline;"
+                                                  title="Click to view graph">@displayName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="element-name text-primary"
+                                                  data-metric="@metric.DisplayName"
+                                                  data-scaling-label="@statement.ScalingLabel"
+                                                  data-labels='@Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears.Select(fy => fy.DisplayName.Replace("Report", "").Trim()).Reverse()))'
+                                                  data-values='@Html.Raw(JsonConvert.SerializeObject(metric.Values.Select(v => v).Reverse()))'
+                                                  style="cursor:pointer; text-decoration: underline;"
+                                                  title="Click to view historical data">@formattedName</span>
+                                        }
+                                    </td>
+                                    @if (metric.Values != null && metric.Values.Any())
+                                    {
+                                        foreach (var value in metric.Values.AsEnumerable().Reverse())
+                                        {
+                                            <td class="text-center">
+                                                @if (string.IsNullOrEmpty(value) || value.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    @Html.Raw("<span style='color:#ccc;'>N/A</span>")
+                                                }
+                                                else
+                                                {
+                                                    @value
+                                                }
+                                            </td>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <td colspan="@((Model.FinancialYears?.Count??0))" class="text-center">N/A</td>
+                                    }
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="@((Model.FinancialYears?.Count??1))" class="text-center text-muted">
+                                    No financial metrics available for this statement.
+                                </td>
+                            </tr>
+                        }
                     }
-                </tbody>
-            </table>
-        </div>
-    </div>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="@((Model.FinancialYears?.Count??1))">
+                        No statements available.
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
 
-    <!-- Modal for Displaying the Graph -->
-    <div class="modal fade" id="graphModal" tabindex="-1" aria-labelledby="graphModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Historical Data</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="loadingIndicator" class="text-center my-3" style="display: none;">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p>Loading data...</p>
+<!-- Modal for Displaying the Chart -->
+<div class="modal fade" id="graphModal" tabindex="-1" aria-labelledby="graphModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Historical Data</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="loadingIndicator" style="display:none;text-align:center;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
-                    <canvas id="metricChart" width="100%" height="40" style="display: none;"></canvas>
+                    <p>Loading data...</p>
+                </div>
+                <div class="chart-container" style="position:relative;height:400px;width:100%;">
+                    <canvas id="metricChart" style="display:none;"></canvas>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    @section Scripts {
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="~/js/chart.js"></script>
-    }
-</body>
-</html>
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/chart.js"></script>
+}

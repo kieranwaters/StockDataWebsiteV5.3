@@ -5,14 +5,8 @@
 @functions {
     public bool IsUserAdmin()
     {
-        // Example logic: read "Username" from session
         var username = Context.Session.GetString("Username");
         if (string.IsNullOrEmpty(username)) return false;
-        // TODO: Fetch the user from DB or from session
-        // e.g. var user = _context.Users.FirstOrDefault(u => u.Username == username);
-        // return user != null && user.Admin;
-        // TEMPORARY stub: for demonstration only
-        // Return 'true' or 'false' based on your actual logic
         return false;
     }
 }
@@ -80,10 +74,12 @@
     <button id="extractXbrlElementsBtn" class="btn btn-warning custom-margin">Extract Unique XBRL Elements</button>
     <div id="uniqueXbrlElementsResult" class="mt-3"></div>
 </div>
-<!-- NEW: Button to scrape all OTC companies -->
 <div class="mt-3">
     <button id="scrapeAllOtcCompaniesBtn" class="btn btn-primary custom-margin">Scrape All OTC Company Names and insert in dbo.CompaniesList</button>
     <div id="scrapeAllOtcCompaniesResult" class="mt-2"></div>
+</div>
+<div class="mt-3">
+    <button id="scrapeUkCompaniesBtn" class="btn btn-info custom-margin">Gather UK Stock Names and Tickers</button><div id="scrapeUkCompaniesResult" class="mt-2"></div>
 </div>
 @if (ViewBag.Result != null)
 {
@@ -106,6 +102,35 @@
                 });
             }
             loadCompanyCounts();
+            const scrapeUkCompaniesBtn=document.getElementById('scrapeUkCompaniesBtn');
+            const scrapeUkCompaniesResult=document.getElementById('scrapeUkCompaniesResult');
+            scrapeUkCompaniesBtn.addEventListener('click',function(){
+                scrapeUkCompaniesBtn.disabled=true;
+                scrapeUkCompaniesResult.innerHTML='<span class="text-info">Scraping UK stocks in progress...</span>';
+                fetch('/Scraper/ScrapeUKCompanies',{
+                    method:'POST',
+                    headers:{
+                        'Content-Type':'application/json',
+                        'RequestVerificationToken':getAntiForgeryToken() // uses your existing getAntiForgeryToken() method
+                    },
+                    body: JSON.stringify({}) // or omit the body entirely if not needed
+                })
+                .then(response=>response.json())
+                .then(data=>{
+                    if(data.success){
+                        scrapeUkCompaniesResult.innerHTML=`<span class="text-success">${data.message}</span>`;
+                    } else {
+                        scrapeUkCompaniesResult.innerHTML=`<span class="text-danger">${data.message}</span>`;
+                    }
+                })
+                .catch(err=>{
+                    console.error(err);
+                    scrapeUkCompaniesResult.innerHTML='<span class="text-danger">An error occurred while scraping UK companies.</span>';
+                })
+                .finally(()=>{
+                    scrapeUkCompaniesBtn.disabled=false;
+                });
+            });
             const scrapeButton = document.getElementById('scrapeUnscrapedReports');
             let isScraping = false;
             scrapeButton.addEventListener('click', function() {

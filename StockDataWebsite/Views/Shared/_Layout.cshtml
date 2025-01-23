@@ -35,12 +35,6 @@
 </script>
 
 @functions {
-    /// <summary>
-    /// Determines if the currently logged-in user is admin by:
-    /// 1) reading "Username" from session
-    /// 2) looking up the user in your DB
-    /// 3) checking the bool Admin column
-    /// </summary>
     public bool IsUserAdmin()
     {
         // 1) Attempt to get the logged-in username from session

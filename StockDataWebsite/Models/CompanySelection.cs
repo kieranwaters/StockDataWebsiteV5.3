@@ -9,30 +9,9 @@ namespace StockDataWebsite.Models
         public string CompanySymbol { get; set; }
         public List<ReportPeriod> FinancialYears { get; set; }
         public string DataType { get; set; }
-        public Dictionary<string, List<string>> FinancialDataElements { get; set; }
-        public List<string> HtmlElementsOfInterest { get; set; }
         public List<StatementFinancialData> Statements { get; set; }
         public string StockPrice { get; set; }
         public string BaseType { get; set; }
-        public List<StatementFinancialData> Statements2 { get; internal set; }
-    }
-    public class RemoveCompanyRequest
-    {
-        public string CompanySymbol { get; set; }
-    }
-
-    public class DisplayMetricRow
-    {
-        public string DisplayName { get; set; }
-
-        // The list of values for each financial year.
-        public List<string> Values { get; set; }
-
-        // Indicates whether this row is part of a merged group and should not display the DisplayName.
-        public bool IsMergedRow { get; set; }
-
-        // The number of rows to merge. Applicable only to the first row in a merged group.
-        public int RowSpan { get; set; }
     }
     public class FinancialData
     {
@@ -53,4 +32,3 @@ namespace StockDataWebsite.Models
         public string CompanySymbol { get; set; }
     }
 }
-//

@@ -396,15 +396,6 @@ namespace StockDataWebsite.Controllers
 
                     _logger.LogInformation($"Deleted {rowsAffected} FinancialData records for CompanyID {companyId}.");
                 }
-
-                // Optionally, delete the company from the Companies table if needed
-                // string deleteCompanyQuery = "DELETE FROM Companies WHERE CompanyID = @CompanyID";
-                // using (SqlCommand cmd = new SqlCommand(deleteCompanyQuery, conn))
-                // {
-                //     cmd.Parameters.AddWithValue("@CompanyID", companyId);
-                //     int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                //     _logger.LogInformation($"Deleted {rowsAffected} Company records for CompanyID {companyId}.");
-                // }
             }
 
             // Step 3: Remove the company from the session's SelectedCompanies list
@@ -544,6 +535,20 @@ namespace StockDataWebsite.Controllers
             {
                 Console.WriteLine($"[ERROR] {ex.Message}");
                 return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ScrapeUKCompanies()
+        {
+            try
+            {
+                await UKScraper.ScrapeUkCompaniesAsync();
+                return Json(new { success = true, message = "Scraping UK companies completed." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Error: {ex.Message}" });
             }
         }
 
