@@ -2,10 +2,7 @@
 @model StockDataWebsite.Models.StockDataViewModel
 
 @{
-
     Layout = "~/Views/Shared/_Layout.cshtml";
-
-    // Page title and meta description
     ViewData["Title"] = "Stock Data";
     ViewData["Description"] = $"View comprehensive stock data for {Model.CompanyName} ({Model.CompanySymbol}), including {Model.DataType} financial reports and historical metrics.";
 }
@@ -15,13 +12,50 @@
     {
         if (string.IsNullOrEmpty(elementName)) return elementName;
         if (elementName.ToUpperInvariant() == elementName) return elementName;
-        // Insert spaces before capitals except the first
         return System.Text.RegularExpressions.Regex.Replace(elementName, "(?<!^)([A-Z])", " $1");
     }
 }
+
+<style>
+    /* Fixed scrollbar container */
+    .fixed-scroll-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: transparent;
+        z-index: 1000;
+        overflow-x: scroll;
+    }
+
+    /* Main table container */
+    .table-responsive {
+        overflow-x: hidden !important;
+        scrollbar-width: none;
+        margin-bottom: 8px;
+    }
+
+    /* WebKit scrollbar styling */
+    .fixed-scroll-container::-webkit-scrollbar {
+        height: 8px;
+        background: #f8f9fa;
+    }
+
+    .fixed-scroll-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    /* Unified page scroll */
+    html {
+        overflow-y: auto !important;
+        overflow-x: hidden;
+    }
+</style>
+
 <h2>Stock Data for @Model.CompanyName (@Model.CompanySymbol)</h2>
 
-@* Conditional display of Latest Price *@
 @if (!string.IsNullOrEmpty(Model.StockPrice) && !Model.StockPrice.Equals("N/A", StringComparison.OrdinalIgnoreCase))
 {
     <h4>Latest Price: @Model.StockPrice</h4>
@@ -37,7 +71,7 @@
 <div id="feedbackMessage"></div>
 
 <br />
-<!-- Financial Data Toggle Buttons -->
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Financial Results</h3>
     <div>
@@ -60,14 +94,14 @@
     </div>
 </div>
 
-<!-- Tip about clicking items -->
 <div class="alert alert-info" role="alert">
     <strong>Tip:</strong> You can click on an item name to view its historical graph.
 </div>
 
-<!-- Main Financial Table -->
-<div class="table-responsive">
+<!-- Scrollable Table Container -->
+<div class="table-responsive" style="min-width: 100%;">
     <table class="table table-striped table-bordered">
+        <!-- Table content remains identical to your original -->
         <thead>
             <tr>
                 @if (Model.DataType == "enhanced")
@@ -95,7 +129,6 @@
         <tbody>
             @if (Model.Statements != null && Model.Statements.Any())
             {
-                // If the user selected "enhanced" data
                 if (Model.DataType == "enhanced")
                 {
                     foreach (var statement in Model.Statements)
@@ -105,7 +138,6 @@
                             <tr>
                                 <td class="align-middle text-nowrap">
                                     @{
-                                        // Prepare the display name, handle very long names
                                         var formattedName = FormatElementName(metric.DisplayName ?? "").Replace("(null)", "").Trim();
                                         var isLongName = (formattedName.Length > 40);
                                         var displayName = isLongName ? formattedName.Substring(0, 40) + "..." : formattedName;
@@ -170,7 +202,6 @@
                 }
                 else
                 {
-                    // "Basic" (non-enhanced) version
                     foreach (var statement in Model.Statements)
                     {
                         <tr class="table-primary">
@@ -265,6 +296,11 @@
     </table>
 </div>
 
+<!-- Fixed Scrollbar Container -->
+<div class="fixed-scroll-container">
+    <div class="dummy-scroll-content" style="height: 1px;"></div>
+</div>
+
 <!-- Modal for Displaying the Chart -->
 <div class="modal fade" id="graphModal" tabindex="-1" aria-labelledby="graphModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
@@ -289,6 +325,48 @@
 </div>
 
 @section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tableWrapper = document.querySelector('.table-responsive');
+            const fixedScroll = document.querySelector('.fixed-scroll-container');
+            const dummyContent = document.querySelector('.dummy-scroll-content');
+
+            if (tableWrapper && fixedScroll) {
+                // Horizontal scroll sync
+                const syncScrollWidth = () => {
+                    dummyContent.style.width = (tableWrapper.scrollWidth + 20) + 'px';
+                };
+
+                syncScrollWidth();
+                window.addEventListener('resize', syncScrollWidth);
+
+                tableWrapper.addEventListener('scroll', () => {
+                    fixedScroll.scrollLeft = tableWrapper.scrollLeft;
+                });
+
+                fixedScroll.addEventListener('scroll', () => {
+                    tableWrapper.scrollLeft = fixedScroll.scrollLeft;
+                });
+
+                // Unified vertical scroll with speed adjustment
+                let isOverTable = false;
+                const scrollMultiplier = 6; // Increase this number for faster scrolling
+
+                tableWrapper.addEventListener('mouseenter', () => isOverTable = true);
+                tableWrapper.addEventListener('mouseleave', () => isOverTable = false);
+
+                document.addEventListener('wheel', (e) => {
+                    if (!isOverTable) return;
+
+                    window.scrollBy({
+                        top: e.deltaY * scrollMultiplier,
+                        left: 0,
+                        behavior: 'auto'
+                    });
+                }, { passive: true });
+            }
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/js/chart.js"></script>
 }

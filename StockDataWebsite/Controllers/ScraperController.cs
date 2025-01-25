@@ -516,6 +516,24 @@ namespace StockDataWebsite.Controllers
                 return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
             }
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CheckSecDatabaseForRecentReports()
+        {
+            try
+            {
+                // We will scrape all non-OTC companies for the last 6 months
+                var scrapeResult = await URL.ScrapeAllNonOtcCompaniesForLast6MonthsAsync();
+                return Json(new { success = true, message = scrapeResult });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Error encountered: {ex.Message}" });
+            }
+        }
+
+
+
         // New action to trigger XBRL data parsing and saving
         [HttpPost]
         [ValidateAntiForgeryToken] // Ensures CSRF protection
