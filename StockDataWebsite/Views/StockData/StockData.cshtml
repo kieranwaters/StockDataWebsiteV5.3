@@ -17,7 +17,22 @@
 }
 
 <style>
-    /* Fixed scrollbar container */
+    /* Add year filter styling */
+    .year-filter-container {
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    #yearFilter {
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        width: 150px;
+    }
+
+    /* Existing styles remain unchanged */
     .fixed-scroll-container {
         position: fixed;
         bottom: 0;
@@ -29,14 +44,12 @@
         overflow-x: scroll;
     }
 
-    /* Main table container */
     .table-responsive {
         overflow-x: hidden !important;
         scrollbar-width: none;
         margin-bottom: 8px;
     }
 
-    /* WebKit scrollbar styling */
     .fixed-scroll-container::-webkit-scrollbar {
         height: 8px;
         background: #f8f9fa;
@@ -47,7 +60,6 @@
         border-radius: 4px;
     }
 
-    /* Unified page scroll */
     html {
         overflow-y: auto !important;
         overflow-x: hidden;
@@ -60,6 +72,17 @@
 {
     <h4>Latest Price: @Model.StockPrice</h4>
 }
+
+<!-- Year Filter Dropdown -->
+<div class="year-filter-container">
+    <label for="yearFilter">Show Years:</label>
+    <select id="yearFilter" class="form-select">
+        <option value="all">All Years</option>
+        <option value="5">Last 5 Years</option>
+        <option value="3">Last 3 Years</option>
+        <option value="1">Last Year</option>
+    </select>
+</div>
 
 <form id="addToWatchlistForm" asp-controller="StockData" asp-action="AddToWatchlist" method="post">
     @Html.AntiForgeryToken()
@@ -326,13 +349,88 @@
 
 @section Scripts {
     <script>
+        // Store original years data
+        const allYears = @Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears));
+        let currentDisplayYears = [...allYears].reverse();
+
+        // Function to hide rows with all N/A values
+               function hideAllNaRows() {
+            document.querySelectorAll('tbody tr').forEach(row => {
+                // Skip statement header rows (table-primary)
+                if (row.classList.contains('table-primary')) return;
+
+                const cells = Array.from(row.querySelectorAll('td:not(:first-child)'))
+                    .filter(cell => cell.style.display !== 'none');
+                const allNa = cells.every(cell => {
+                    const content = cell.textContent.trim();
+                    return content === 'N/A' || content === '';
+                });
+                row.style.display = allNa ? 'none' : '';
+            });
+        }
+
+        document.getElementById('yearFilter').addEventListener('change', function() {
+            const selectedValue = this.value;
+            let yearsToShow = [];
+
+            switch(selectedValue) {
+                case '5':
+                    yearsToShow = currentDisplayYears.slice(0, 5);
+                    break;
+                case '3':
+                    yearsToShow = currentDisplayYears.slice(0, 3);
+                    break;
+                case '1':
+                    yearsToShow = currentDisplayYears.slice(0, 1);
+                    break;
+                default:
+                    yearsToShow = currentDisplayYears;
+            }
+
+            // Update table headers
+            const headerRow = document.querySelector('thead tr');
+            const headers = headerRow.querySelectorAll('th:not(:first-child)');
+            headers.forEach((th, index) => {
+                th.style.display = index < yearsToShow.length ? '' : 'none';
+            });
+
+            // Update table body cells
+            const tableRows = document.querySelectorAll('tbody tr');
+            tableRows.forEach(row => {
+                const cells = row.querySelectorAll('td:not(:first-child)');
+                cells.forEach((cell, index) => {
+                    cell.style.display = index < yearsToShow.length ? '' : 'none';
+                });
+            });
+
+            // Update horizontal scroll
+            const dummyContent = document.querySelector('.dummy-scroll-content');
+            const tableWrapper = document.querySelector('.table-responsive');
+            dummyContent.style.width = tableWrapper.scrollWidth + 20 + 'px';
+
+            // Hide N/A rows after filtering
+            hideAllNaRows();
+        });
+
+        // Initialize with all years visible
         document.addEventListener('DOMContentLoaded', function() {
+            const headerRow = document.querySelector('thead tr');
+            headerRow.innerHTML = `
+                ${headerRow.children[0].outerHTML}
+                ${currentDisplayYears.map(year =>
+                    `<th class="text-center">${year.DisplayName.replace("Report", "").trim()}</th>`
+                ).join('')}
+            `;
+
+            // Initial N/A row hiding
+            hideAllNaRows();
+
+            // Existing scroll handling code
             const tableWrapper = document.querySelector('.table-responsive');
             const fixedScroll = document.querySelector('.fixed-scroll-container');
             const dummyContent = document.querySelector('.dummy-scroll-content');
 
             if (tableWrapper && fixedScroll) {
-                // Horizontal scroll sync
                 const syncScrollWidth = () => {
                     dummyContent.style.width = (tableWrapper.scrollWidth + 20) + 'px';
                 };
@@ -350,7 +448,7 @@
 
                 // Unified vertical scroll with speed adjustment
                 let isOverTable = false;
-                const scrollMultiplier = 6; // Increase this number for faster scrolling
+                const scrollMultiplier = 6;
 
                 tableWrapper.addEventListener('mouseenter', () => isOverTable = true);
                 tableWrapper.addEventListener('mouseleave', () => isOverTable = false);
