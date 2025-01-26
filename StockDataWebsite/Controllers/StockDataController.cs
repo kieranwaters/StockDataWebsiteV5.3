@@ -20,8 +20,28 @@ namespace StockDataWebsite.Controllers
             _twelveDataService = twelveDataService;
             _logger = logger;
         }
+        public List<ReportPeriod> CreateReportPeriods(string dataType, List<(int Year, int Quarter)> recentReportPairs)
+        {
+            if (dataType == "annual")
+            {
+                return recentReportPairs.Select(rp => new ReportPeriod
+                {
+                    DisplayName = rp.Year.ToString(),
+                    CompositeKey = $"{rp.Year}-{rp.Quarter}"
+                }).ToList();
+            }
+            else
+            {
+                return recentReportPairs.Select(rp => new ReportPeriod
+                {
+                    DisplayName = $"Q{rp.Quarter}Report {rp.Year}",
+                    CompositeKey = $"{rp.Year}-{rp.Quarter}"
+                }).ToList();
+            }
+        }
+
         public async Task<IActionResult> StockData(string companyName, string dataType = "annual",
-                                           string baseType = null, string yearFilter = "all")
+                                                  string baseType = null, string yearFilter = "all")
         {
             try
             {
@@ -147,18 +167,21 @@ namespace StockDataWebsite.Controllers
 
                 var stockPrice = await _twelveDataService.GetStockPriceAsync(companySymbol);
                 var formattedStockPrice = stockPrice.HasValue ? $"${stockPrice.Value:F2}" : "N/A";
+                var uniqueYears = recentReportPairs.Select(rp => rp.Year).Distinct().OrderByDescending(y => y).ToList();
+
 
                 // Add yearFilter to the model (ONLY NEW LINE)
                 var model = new StockDataViewModel
                 {
                     CompanyName = companyName,
                     CompanySymbol = companySymbol,
-                    FinancialYears = reportPeriods,
+                    FinancialYears = CreateReportPeriods(dataTypeForFetching, recentReportPairs),
                     Statements = orderedStatements,
                     StockPrice = formattedStockPrice,
                     DataType = dataType,
                     BaseType = baseType,
-                    SelectedYearFilter = yearFilter // NEW PROPERTY ADDED
+                    SelectedYearFilter = yearFilter,
+                    UniqueYears = uniqueYears // Populate unique years
                 };
 
                 _logger.LogInformation($"StockData: Successfully retrieved data for CompanyID = {companyId}, Symbol = {companySymbol}");
@@ -693,25 +716,25 @@ FetchAnnualReports(int companyId)
                 return $"General_{originalKey.Trim()}";
             }
         }
-        public List<ReportPeriod> CreateReportPeriods(string dataType, List<(int Year, int Quarter)> recentReportPairs)
-        {
-            if (dataType == "annual")
-            {
-                return recentReportPairs.Select(rp => new ReportPeriod
-                {
-                    DisplayName = rp.Year.ToString(),
-                    CompositeKey = $"{rp.Year}-{rp.Quarter}"
-                }).ToList();
-            }
-            else
-            {
-                return recentReportPairs.Select(rp => new ReportPeriod
-                {
-                    DisplayName = $"Q{rp.Quarter}Report {rp.Year}",
-                    CompositeKey = $"{rp.Year}-{rp.Quarter}"
-                }).ToList();
-            }
-        }
+        //public List<ReportPeriod> CreateReportPeriods(string dataType, List<(int Year, int Quarter)> recentReportPairs)
+        //{
+        //    if (dataType == "annual")
+        //    {
+        //        return recentReportPairs.Select(rp => new ReportPeriod
+        //        {
+        //            DisplayName = rp.Year.ToString(),
+        //            CompositeKey = $"{rp.Year}-{rp.Quarter}"
+        //        }).ToList();
+        //    }
+        //    else
+        //    {
+        //        return recentReportPairs.Select(rp => new ReportPeriod
+        //        {
+        //            DisplayName = $"Q{rp.Quarter}Report {rp.Year}",
+        //            CompositeKey = $"{rp.Year}-{rp.Quarter}"
+        //        }).ToList();
+        //    }
+        //}
         private static bool TryGetValueIgnoreCaseAndWhitespace(Dictionary<string, object> dict, string key, out object value)
         {
             value = null;
@@ -953,7 +976,6 @@ FetchAnnualReports(int companyId)
                 return StatusCode(500, "An error occurred while processing the data.");
             }
         }
-
 
         private int CountTrailingZeros(decimal value)
         {

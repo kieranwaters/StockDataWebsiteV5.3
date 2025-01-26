@@ -72,7 +72,7 @@
 {
     <h4>Latest Price: @Model.StockPrice</h4>
 }
-<select id="yearFilter" class="form-select">
+<select id="yearFilter" class="form-select mb-1">
     <option value="all" selected="@(Model.SelectedYearFilter == "all" ? "selected" : null)">All Years</option>
     <option value="5" selected="@(Model.SelectedYearFilter == "5" ? "selected" : null)">Last 5 Years</option>
     <option value="3" selected="@(Model.SelectedYearFilter == "3" ? "selected" : null)">Last 3 Years</option>
@@ -145,6 +145,7 @@
             </tr>
         </thead>
         <tbody>
+            @* Existing table body logic *@
             @if (Model.Statements != null && Model.Statements.Any())
             {
                 if (Model.DataType == "enhanced")
@@ -286,7 +287,7 @@
                                     }
                                     else
                                     {
-                                        <td colspan="@((Model.FinancialYears?.Count??0))" class="text-center">N/A</td>
+                                        <td colspan="@((Model.FinancialYears?.Count??1))" class="text-center">N/A</td>
                                     }
                                 </tr>
                             }
@@ -344,9 +345,13 @@
 
 @section Scripts {
     <script>
-        // Store original years data
-        const allYears = @Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears));
-        let currentDisplayYears = [...allYears].reverse();
+        // Serialize and assign FinancialYears and UniqueYears from the model to JavaScript variables
+        const allPeriods = @Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears));
+        const uniqueYears = @Html.Raw(JsonConvert.SerializeObject(Model.UniqueYears));
+        const dataType = '@Model.DataType'; // "annual", "quarterly", or "enhanced"
+
+        // Reverse the periods to have them in descending order (latest first)
+        const currentDisplayPeriods = [...allPeriods].reverse();
 
         // Function to hide rows with all N/A values
         function hideAllNaRows() {
@@ -364,83 +369,128 @@
             });
         }
 
+        // Function to handle the year filter change
         function handleYearFilterChange(selectedValue) {
-            // Update report type links
+            // Update report type links with the new yearFilter parameter
             document.querySelectorAll('.report-type-link').forEach(link => {
                 const url = new URL(link.href);
                 url.searchParams.set('yearFilter', selectedValue);
                 link.href = url.toString();
             });
 
-            // Update browser history
+            // Update browser history to reflect the selected yearFilter
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('yearFilter', selectedValue);
             window.history.replaceState({}, '', newUrl);
 
-            // Determine years to show
-            let yearsToShow;
+            // Determine the number of years to display based on the selected filter
+            let numYears;
             switch(selectedValue) {
                 case '5':
-                    yearsToShow = currentDisplayYears.slice(0, 5);
+                    numYears = 5;
                     break;
                 case '3':
-                    yearsToShow = currentDisplayYears.slice(0, 3);
+                    numYears = 3;
                     break;
                 case '1':
-                    yearsToShow = currentDisplayYears.slice(0, 1);
+                    numYears = 1;
                     break;
                 default:
-                    yearsToShow = currentDisplayYears;
+                    numYears = uniqueYears.length; // "all" selected
             }
 
-            // Update table headers
+            // Select the top 'numYears' from uniqueYears (descending order)
+            const yearsToShow = uniqueYears.slice(0, numYears);
+
+            // Determine which periods to show based on dataType
+            let periodsToShow;
+
+            if (dataType === "annual") {
+                // For annual data, periodsToShow are the selected years as strings
+                periodsToShow = yearsToShow.map(year => year.toString());
+            } else if (dataType === "quarterly") {
+                // For quarterly data, include all quarters within the selected years
+                periodsToShow = currentDisplayPeriods
+                    .filter(period => {
+                        const year = parseInt(period.CompositeKey.split('-')[0]);
+                        return yearsToShow.includes(year);
+                    })
+                    .map(period => period.DisplayName); // Use DisplayName (e.g., "Q1 2023")
+            } else if (dataType === "enhanced") {
+                // Handle "enhanced" dataType as needed; assuming similar to "annual" here
+                periodsToShow = yearsToShow.map(year => year.toString());
+            }
+
+            // Debugging: Log the filtering details
+            console.log("Selected Year Filter:", selectedValue);
+            console.log("Number of Years to Show:", numYears);
+            console.log("Years to Show:", yearsToShow);
+            console.log("Periods to Show:", periodsToShow);
+
+            // Update table headers based on periodsToShow
             const headerRow = document.querySelector('thead tr');
             const headers = headerRow.querySelectorAll('th:not(:first-child)');
             headers.forEach((th, index) => {
-                th.style.display = index < yearsToShow.length ? '' : 'none';
+                const period = currentDisplayPeriods[index];
+                if (dataType === "annual") {
+                    th.style.display = periodsToShow.includes(period.DisplayName) ? '' : 'none';
+                } else if (dataType === "quarterly") {
+                    const year = parseInt(period.CompositeKey.split('-')[0]);
+                    th.style.display = yearsToShow.includes(year) ? '' : 'none';
+                } else if (dataType === "enhanced") {
+                    th.style.display = periodsToShow.includes(period.DisplayName) ? '' : 'none';
+                }
             });
 
-            // Update table body cells
+            // Update table body cells based on periodsToShow
             const tableRows = document.querySelectorAll('tbody tr');
             tableRows.forEach(row => {
                 const cells = row.querySelectorAll('td:not(:first-child)');
                 cells.forEach((cell, index) => {
-                    cell.style.display = index < yearsToShow.length ? '' : 'none';
+                    const period = currentDisplayPeriods[index];
+                    if (dataType === "annual") {
+                        cell.style.display = periodsToShow.includes(period.DisplayName) ? '' : 'none';
+                    } else if (dataType === "quarterly") {
+                        const year = parseInt(period.CompositeKey.split('-')[0]);
+                        cell.style.display = yearsToShow.includes(year) ? '' : 'none';
+                    } else if (dataType === "enhanced") {
+                        cell.style.display = periodsToShow.includes(period.DisplayName) ? '' : 'none';
+                    }
                 });
             });
 
-            // Update horizontal scroll
+            // Update horizontal scroll to match table width
             const dummyContent = document.querySelector('.dummy-scroll-content');
             const tableWrapper = document.querySelector('.table-responsive');
             dummyContent.style.width = tableWrapper.scrollWidth + 20 + 'px';
 
-            // Hide N/A rows
+            // Hide rows with all N/A values
             hideAllNaRows();
         }
 
-        // Initialize when DOM is ready
+        // Initialize the table and event listeners when the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', function() {
             // Set up initial table headers
             const headerRow = document.querySelector('thead tr');
             headerRow.innerHTML = `
                 ${headerRow.children[0].outerHTML}
-                ${currentDisplayYears.map(year =>
-                    `<th class="text-center">${year.DisplayName.replace("Report", "").trim()}</th>`
+                ${currentDisplayPeriods.map(period =>
+                    `<th class="text-center">${period.DisplayName.replace("Report", "").trim()}</th>`
                 ).join('')}
             `;
 
-            // Set up year filter
+            // Set up the year filter dropdown
             const yearFilter = document.getElementById('yearFilter');
 
-            // Initial filter setup
+            // Apply the initial filter based on the current selection
             handleYearFilterChange(yearFilter.value);
 
-            // Event listener for filter changes
+            // Add event listener for changes in the year filter
             yearFilter.addEventListener('change', function() {
                 handleYearFilterChange(this.value);
             });
 
-            // Handle browser navigation
+            // Handle browser navigation (back/forward buttons)
             window.addEventListener('popstate', function() {
                 const urlParams = new URLSearchParams(window.location.search);
                 const yearFilterValue = urlParams.get('yearFilter') || 'all';
@@ -448,28 +498,32 @@
                 handleYearFilterChange(yearFilterValue);
             });
 
-            // Scroll handling (existing code)
-            const tableWrapper = document.querySelector('.table-responsive');
+            // Handle horizontal scrolling synchronization
+            const tableWrapperElement = document.querySelector('.table-responsive');
             const fixedScroll = document.querySelector('.fixed-scroll-container');
             const dummyContent = document.querySelector('.dummy-scroll-content');
 
-            if (tableWrapper && fixedScroll) {
+            if (tableWrapperElement && fixedScroll) {
                 const syncScrollWidth = () => {
-                    dummyContent.style.width = (tableWrapper.scrollWidth + 20) + 'px';
+                    dummyContent.style.width = (tableWrapperElement.scrollWidth + 20) + 'px';
                 };
 
+                // Initial synchronization
                 syncScrollWidth();
+
+                // Update synchronization on window resize
                 window.addEventListener('resize', syncScrollWidth);
 
-                tableWrapper.addEventListener('scroll', () => {
-                    fixedScroll.scrollLeft = tableWrapper.scrollLeft;
+                // Synchronize scrolling between table and fixed scrollbar
+                tableWrapperElement.addEventListener('scroll', () => {
+                    fixedScroll.scrollLeft = tableWrapperElement.scrollLeft;
                 });
 
                 fixedScroll.addEventListener('scroll', () => {
-                    tableWrapper.scrollLeft = fixedScroll.scrollLeft;
+                    tableWrapperElement.scrollLeft = fixedScroll.scrollLeft;
                 });
 
-                // Removed the custom wheel event handler to prevent jumpy scrolling
+                // No custom wheel event handler to prevent jumpy scrolling
             }
         });
     </script>

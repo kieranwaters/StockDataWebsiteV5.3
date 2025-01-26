@@ -13,6 +13,7 @@ namespace StockDataWebsite.Models
         public string StockPrice { get; set; }
         public string BaseType { get; set; }
         public string SelectedYearFilter { get; set; }
+        public List<int> UniqueYears { get; set; }
     }
     public class FinancialData
     {
