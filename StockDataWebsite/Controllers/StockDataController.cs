@@ -20,7 +20,8 @@ namespace StockDataWebsite.Controllers
             _twelveDataService = twelveDataService;
             _logger = logger;
         }
-        public async Task<IActionResult> StockData(string companyName, string dataType = "annual", string baseType = null)
+        public async Task<IActionResult> StockData(string companyName, string dataType = "annual",
+                                           string baseType = null, string yearFilter = "all")
         {
             try
             {
@@ -70,7 +71,7 @@ namespace StockDataWebsite.Controllers
 
                 if (dataType == "enhanced")
                 {
-                    // Enhanced data logic
+                    // Enhanced data logic (EXISTING CODE - NO CHANGES)
                     var financialDataRecordsLookup = financialDataRecords.ToDictionary(fd => $"{fd.Year.Value}-{fd.Quarter}", fd => fd);
                     var xbrlElements = ExtractXbrlElements(financialDataRecordsLookup, recentReportPairs);
 
@@ -134,7 +135,7 @@ namespace StockDataWebsite.Controllers
                 }
                 else
                 {
-                    // Basic data logic
+                    // Basic data logic (EXISTING CODE - NO CHANGES)
                     var financialDataRecordsLookup = financialDataRecords.ToDictionary(fd => $"{fd.Year.Value}-{fd.Quarter}", fd => fd);
 
                     var financialDataElements = InitializeFinancialDataElements(financialDataRecords);
@@ -147,6 +148,7 @@ namespace StockDataWebsite.Controllers
                 var stockPrice = await _twelveDataService.GetStockPriceAsync(companySymbol);
                 var formattedStockPrice = stockPrice.HasValue ? $"${stockPrice.Value:F2}" : "N/A";
 
+                // Add yearFilter to the model (ONLY NEW LINE)
                 var model = new StockDataViewModel
                 {
                     CompanyName = companyName,
@@ -155,7 +157,8 @@ namespace StockDataWebsite.Controllers
                     Statements = orderedStatements,
                     StockPrice = formattedStockPrice,
                     DataType = dataType,
-                    BaseType = baseType // Store the baseType in the model
+                    BaseType = baseType,
+                    SelectedYearFilter = yearFilter // NEW PROPERTY ADDED
                 };
 
                 _logger.LogInformation($"StockData: Successfully retrieved data for CompanyID = {companyId}, Symbol = {companySymbol}");
@@ -168,8 +171,8 @@ namespace StockDataWebsite.Controllers
             }
         }
         private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys,
-         List<FinancialData> financialDataRecords, List<string> recentReports)
-    FetchAnnualReports(int companyId)
+     List<FinancialData> financialDataRecords, List<string> recentReports)
+FetchAnnualReports(int companyId)
         {
             // Previously used .Take(10) to limit data. Removed for full listing.
             var recentYears = _context.FinancialData

@@ -72,17 +72,12 @@
 {
     <h4>Latest Price: @Model.StockPrice</h4>
 }
-
-<!-- Year Filter Dropdown -->
-<div class="year-filter-container">
-    <label for="yearFilter">Show Years:</label>
-    <select id="yearFilter" class="form-select">
-        <option value="all">All Years</option>
-        <option value="5">Last 5 Years</option>
-        <option value="3">Last 3 Years</option>
-        <option value="1">Last Year</option>
-    </select>
-</div>
+<select id="yearFilter" class="form-select">
+    <option value="all" selected="@(Model.SelectedYearFilter == "all" ? "selected" : null)">All Years</option>
+    <option value="5" selected="@(Model.SelectedYearFilter == "5" ? "selected" : null)">Last 5 Years</option>
+    <option value="3" selected="@(Model.SelectedYearFilter == "3" ? "selected" : null)">Last 3 Years</option>
+    <option value="1" selected="@(Model.SelectedYearFilter == "1" ? "selected" : null)">Last Year</option>
+</select>
 
 <form id="addToWatchlistForm" asp-controller="StockData" asp-action="AddToWatchlist" method="post">
     @Html.AntiForgeryToken()
@@ -98,21 +93,21 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Financial Results</h3>
     <div>
-        <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType="annual" })"
-           class="btn btn-secondary me-2 @(Model.DataType == "annual" ? "active" : "")">Annual Data</a>
+        <a href="@Url.Action("StockData", "StockData", new { companyName=Model.CompanyName, dataType="annual", yearFilter=Model.SelectedYearFilter })"
+           class="btn btn-secondary me-2 report-type-link @(Model.DataType == "annual" ? "active" : "")">Annual Data</a>
 
-        <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType="quarterly" })"
-           class="btn btn-secondary me-2 @(Model.DataType == "quarterly" ? "active" : "")">Quarterly Data</a>
+        <a href="@Url.Action("StockData", "StockData", new { companyName=Model.CompanyName, dataType="quarterly", yearFilter=Model.SelectedYearFilter })"
+           class="btn btn-secondary me-2 report-type-link @(Model.DataType == "quarterly" ? "active" : "")">Quarterly Data</a>
 
         @if (Model.DataType == "enhanced")
         {
-            <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType=Model.BaseType })"
-               class="btn btn-secondary @(Model.DataType=="enhanced" ? "active" : "")">Basic Financial Data</a>
+            <a href="@Url.Action("StockData", "StockData", new { companyName=Model.CompanyName, dataType=Model.BaseType, yearFilter=Model.SelectedYearFilter })"
+               class="btn btn-secondary report-type-link @(Model.DataType=="enhanced" ? "active" : "")">Basic Financial Data</a>
         }
         else
         {
-            <a href="@Url.Action("StockData","StockData", new { companyName=Model.CompanyName, dataType="enhanced", baseType=Model.DataType })"
-               class="btn btn-secondary @(Model.DataType=="enhanced" ? "active" : "")">Enhanced Financial Data</a>
+            <a href="@Url.Action("StockData", "StockData", new { companyName=Model.CompanyName, dataType="enhanced", baseType=Model.DataType, yearFilter=Model.SelectedYearFilter })"
+               class="btn btn-secondary report-type-link @(Model.DataType=="enhanced" ? "active" : "")">Enhanced Financial Data</a>
         }
     </div>
 </div>
@@ -354,7 +349,7 @@
         let currentDisplayYears = [...allYears].reverse();
 
         // Function to hide rows with all N/A values
-               function hideAllNaRows() {
+        function hideAllNaRows() {
             document.querySelectorAll('tbody tr').forEach(row => {
                 // Skip statement header rows (table-primary)
                 if (row.classList.contains('table-primary')) return;
@@ -369,10 +364,21 @@
             });
         }
 
-        document.getElementById('yearFilter').addEventListener('change', function() {
-            const selectedValue = this.value;
-            let yearsToShow = [];
+        function handleYearFilterChange(selectedValue) {
+            // Update report type links
+            document.querySelectorAll('.report-type-link').forEach(link => {
+                const url = new URL(link.href);
+                url.searchParams.set('yearFilter', selectedValue);
+                link.href = url.toString();
+            });
 
+            // Update browser history
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('yearFilter', selectedValue);
+            window.history.replaceState({}, '', newUrl);
+
+            // Determine years to show
+            let yearsToShow;
             switch(selectedValue) {
                 case '5':
                     yearsToShow = currentDisplayYears.slice(0, 5);
@@ -408,12 +414,13 @@
             const tableWrapper = document.querySelector('.table-responsive');
             dummyContent.style.width = tableWrapper.scrollWidth + 20 + 'px';
 
-            // Hide N/A rows after filtering
+            // Hide N/A rows
             hideAllNaRows();
-        });
+        }
 
-        // Initialize with all years visible
+        // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
+            // Set up initial table headers
             const headerRow = document.querySelector('thead tr');
             headerRow.innerHTML = `
                 ${headerRow.children[0].outerHTML}
@@ -422,10 +429,26 @@
                 ).join('')}
             `;
 
-            // Initial N/A row hiding
-            hideAllNaRows();
+            // Set up year filter
+            const yearFilter = document.getElementById('yearFilter');
 
-            // Existing scroll handling code
+            // Initial filter setup
+            handleYearFilterChange(yearFilter.value);
+
+            // Event listener for filter changes
+            yearFilter.addEventListener('change', function() {
+                handleYearFilterChange(this.value);
+            });
+
+            // Handle browser navigation
+            window.addEventListener('popstate', function() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const yearFilterValue = urlParams.get('yearFilter') || 'all';
+                yearFilter.value = yearFilterValue;
+                handleYearFilterChange(yearFilterValue);
+            });
+
+            // Scroll handling (existing code)
             const tableWrapper = document.querySelector('.table-responsive');
             const fixedScroll = document.querySelector('.fixed-scroll-container');
             const dummyContent = document.querySelector('.dummy-scroll-content');
@@ -446,22 +469,7 @@
                     tableWrapper.scrollLeft = fixedScroll.scrollLeft;
                 });
 
-                // Unified vertical scroll with speed adjustment
-                let isOverTable = false;
-                const scrollMultiplier = 6;
-
-                tableWrapper.addEventListener('mouseenter', () => isOverTable = true);
-                tableWrapper.addEventListener('mouseleave', () => isOverTable = false);
-
-                document.addEventListener('wheel', (e) => {
-                    if (!isOverTable) return;
-
-                    window.scrollBy({
-                        top: e.deltaY * scrollMultiplier,
-                        left: 0,
-                        behavior: 'auto'
-                    });
-                }, { passive: true });
+                // Removed the custom wheel event handler to prevent jumpy scrolling
             }
         });
     </script>
