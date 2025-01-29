@@ -1,4 +1,5 @@
-
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
 using StockDataWebsite.Data;
 using StockScraperV3; // Reference to XBRLElementData
@@ -10,10 +11,25 @@ if (builder.Environment.IsProduction())
 {
     builder.WebHost.ConfigureKestrel(options =>
     {
-        options.ListenAnyIP(80); // HTTP
+        // Listen on port 80 (HTTP)
+        options.ListenAnyIP(80, listenOptions =>
+        {
+            // Optionally, enforce HTTPS redirection here
+        });
+
+        // Listen on port 443 (HTTPS) with HTTP/2 support
         options.ListenAnyIP(443, listenOptions =>
         {
-            listenOptions.UseHttps(); // Requires a valid SSL certificate
+            listenOptions.UseHttps(httpsOptions =>
+            {
+                // Specify TLS versions
+                httpsOptions.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13;
+
+                // Configure HTTPS options (certificates, etc.) if necessary
+            });
+
+            // Specify supported protocols
+            listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
         });
     });
 }
@@ -56,10 +72,33 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+// Add Response Caching services
+builder.Services.AddResponseCaching();
+
+// Add Response Compression services
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "image/svg+xml" }
+    );
+});
+
 var app = builder.Build();
+
+// Custom middleware to remove server headers
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Remove("Server");
+    context.Response.Headers.Remove("X-Powered-By");
+    await next();
+});
 
 // Use session middleware
 app.UseSession();
+
+// Use Response Compression Middleware
+app.UseResponseCompression();
 
 // Configure the HTTP request pipeline
 if (!app.Environment.IsDevelopment())
@@ -69,7 +108,27 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+
+// Configure Static File Middleware with caching
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Cache static files for 30 days
+        ctx.Context.Response.Headers["Cache-Control"] = "public,max-age=2592000";
+        // Optionally, set Expires header
+        // ctx.Context.Response.Headers["Expires"] = DateTime.UtcNow.AddDays(30).ToString("R");
+    }
+});
+
+// Configure URL Rewrite Middleware
+var rewriteOptions = new RewriteOptions()
+    .AddRedirectToWwwPermanent(); // Redirect non-www to www permanently (301)
+
+app.UseRewriter(rewriteOptions);
+
+// Use Response Caching Middleware
+app.UseResponseCaching();
 
 app.UseRouting();
 
@@ -82,5 +141,3 @@ app.MapControllers();
 app.MapDefaultControllerRoute();
 
 app.Run();
-
-

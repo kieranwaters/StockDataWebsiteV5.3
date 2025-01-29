@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -13,6 +14,13 @@ namespace StockDataWebsite.Models
         public string StockPrice { get; set; }
         public string BaseType { get; set; }
         public string SelectedYearFilter { get; set; }
+        public List<SelectListItem> YearFilterOptions { get; set; } = new List<SelectListItem>
+    {
+        new SelectListItem { Value = "all", Text = "All Years" },
+        new SelectListItem { Value = "5", Text = "Last 5 Years" },
+        new SelectListItem { Value = "3", Text = "Last 3 Years" },
+        new SelectListItem { Value = "1", Text = "Last Year" },
+    };
         public List<int> UniqueYears { get; set; }
     }
     public class FinancialData

@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.Rendering;
 namespace StockDataWebsite.Controllers
 {    
     public class StockDataController : Controller
@@ -39,7 +40,16 @@ namespace StockDataWebsite.Controllers
                 }).ToList();
             }
         }
-
+        private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName)
+        {
+            var company = _context.CompaniesList
+                .Where(c => c.CompanyName.ToLower() == companyName.ToLower() ||
+                            c.CompanySymbol.ToLower() == companyName.ToLower())
+                .Select(c => new { c.CompanyID, c.CompanySymbol })
+                .FirstOrDefault();
+            if (company == null) return (0, null);
+            return (company.CompanyID, company.CompanySymbol);
+        }
         public async Task<IActionResult> StockData(string companyName, string dataType = "annual",
                                                   string baseType = null, string yearFilter = "all")
         {
@@ -183,6 +193,13 @@ namespace StockDataWebsite.Controllers
                     SelectedYearFilter = yearFilter,
                     UniqueYears = uniqueYears // Populate unique years
                 };
+                model.YearFilterOptions = new List<SelectListItem>
+{
+    new SelectListItem { Value = "all", Text = "All Years" },
+    new SelectListItem { Value = "5", Text = "Last 5 Years" },
+    new SelectListItem { Value = "3", Text = "Last 3 Years" },
+    new SelectListItem { Value = "1", Text = "Last Year" }
+};
 
                 _logger.LogInformation($"StockData: Successfully retrieved data for CompanyID = {companyId}, Symbol = {companySymbol}");
                 return View(model);
@@ -641,18 +658,6 @@ FetchAnnualReports(int companyId)
                 return "annual";
             }
             return dataType;
-        }
-        private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName)
-        {
-            var company = _context.CompaniesList
-                .Where(c => c.CompanyName == companyName)
-                .Select(c => new { c.CompanyID, c.CompanySymbol })
-                .FirstOrDefault();
-            if (company == null)
-            {
-                return (0, null);
-            }
-            return (company.CompanyID, company.CompanySymbol);
         }
         public (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys, List<FinancialData> financialDataRecords, List<string> recentReports)
             FetchRecentReportsAndData(int companyId, string dataType)

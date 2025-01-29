@@ -9,43 +9,82 @@
             crossorigin="anonymous"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Dynamic Title & Description -->
     <title>@ViewData["Title"] - Alpha Stock Data</title>
     @if (ViewData["Description"] != null)
     {
         <meta name="description" content="@ViewData["Description"]" />
-        // dynamic meta description
     }
     else
     {
         <meta name="description" content="Default description for Alpha Stock Data." />
-        // fallback meta description
     }
+
+    <!-- Robots (index/follow) -->
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph Defaults (Override in specific pages if needed) -->
+    <meta property="og:title" content="@((string)ViewData["Title"] ?? "Alpha Stock Data")" />
+    <meta property="og:description" content="@((string)ViewData["Description"] ?? "Default description for Alpha Stock Data.")" />
+    <meta property="og:url" content="https://www.alphastockdata.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://www.alphastockdata.com/images/default-og-image.jpg" />
+
+    <!-- Twitter Card Defaults -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@((string)ViewData["Title"] ?? "Alpha Stock Data")" />
+    <meta name="twitter:description" content="@((string)ViewData["Description"] ?? "Default description for Alpha Stock Data.")" />
+    <meta name="twitter:image" content="https://www.alphastockdata.com/images/default-twitter-image.jpg" />
+
+    <!-- Canonical URL Fallback -->
+    <link rel="canonical" href="https://www.alphastockdata.com/" />
+
+    <!-- Favicon (Optional) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="~/images/favicon-32x32.png" />
+
+    <!-- Bootstrap, Font Awesome, Site CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha512-pVn6SAHs/...=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/StockDataWebsite.styles.css" asp-append-version="true" />
-</head>
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-TL41QQ3KL4"></script>
-<script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-TL41QQ3KL4');
-</script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TL41QQ3KL4"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-TL41QQ3KL4');
+    </script>
+</head>
 
 @functions {
     public bool IsUserAdmin()
     {
-        // 1) Attempt to get the logged-in username from session
         var username = _httpContextAccessor.HttpContext.Session.GetString("Username");
         if (string.IsNullOrEmpty(username)) return false;
-        // 2) Look up the user by username in the database
         var user = _context.Users.FirstOrDefault(u => u.Username == username);
         if (user == null) return false;
-        // 3) Return true if 'Admin' is true
         return user.Admin;
     }
+}
+
+@{
+    // Determine the current controller and action to identify if on StockData page
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    bool isStockDataPage = currentController.Equals("StockData", StringComparison.OrdinalIgnoreCase);
+
+    // If not on the StockData page, pre-fill with 'companyName' from query string; otherwise, leave empty
+    string defaultSearchValue = isStockDataPage ? "" : (_httpContextAccessor.HttpContext?.Request?.Query?["companyName"].ToString() ?? "");
+
+    // If on the StockData page, get the current company name to exclude it from suggestions
+    string currentCompanyName = isStockDataPage ? (_httpContextAccessor.HttpContext?.Request?.Query?["companyName"].ToString() ?? "") : "";
 }
 
 <body>
@@ -53,8 +92,11 @@
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">AlphaStockData</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
-                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target=".navbar-collapse"
+                        aria-controls="navbarSupportedContent"
+                        aria-expanded="false"
+                        aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
@@ -63,30 +105,49 @@
                             <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
                         <li class="nav-item">
-                            @* Only show if the user is admin *@
                             @if (IsUserAdmin())
                             {
                                 <a class="nav-link" asp-controller="Scraper" asp-action="Index">Scraper (Admin)</a>
                             }
                         </li>
-                        @* <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li> *@
                     </ul>
                     <ul class="navbar-nav ms-auto">
+                        <!-- Search Form in the Navbar -->
+                        <li class="nav-item position-relative">
+                            <form class="d-flex" asp-controller="StockData" asp-action="StockData" method="get" role="search" aria-label="Search for companies">
+                                <input type="text" class="form-control me-2" id="NavbarCompanySearch" name="companyName" value="@defaultSearchValue" placeholder="Search for a company" aria-label="Search" autocomplete="off" />
+                                <div id="navbarSuggestions" class="list-group position-absolute" style="top:100%;left:0;right:0;z-index:1000;"></div>
+                                <button class="btn btn-outline-primary" type="submit">Search</button>
+                            </form>
+                        </li>
                         @if (_httpContextAccessor.HttpContext.Session.GetString("Username") != null)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="StockData" asp-action="Watchlist">Account (@_httpContextAccessor.HttpContext.Session.GetString("Username"))</a>
+                                <a class="nav-link text-dark" asp-controller="StockData" asp-action="Watchlist">
+                                    Account (@_httpContextAccessor.HttpContext.Session.GetString("Username"))
+                                </a>
                             </li>
                         }
                         else
                         {
+                            <!-- Twitter Icon -->
                             <li class="nav-item">
-                                <a class="nav-link text-dark btn btn-outline-primary me-2" asp-controller="Account" asp-action="Login">Login</a>
+                                <a class="nav-link text-dark"
+                                   href="https://x.com/AlphaStockData"
+                                   target="_blank"
+                                   aria-label="Twitter">
+                                    <i class="fab fa-twitter"></i>
+                                </a>
                             </li>
+                            <!-- Login Button -->
                             <li class="nav-item">
-                                <a class="nav-link btn btn-primary text-white" asp-controller="Account" asp-action="SignUp">Sign Up</a>
+                                <a class="nav-link text-dark btn btn-outline-primary me-2"
+                                   asp-controller="Account" asp-action="Login">Login</a>
+                            </li>
+                            <!-- Sign Up Button -->
+                            <li class="nav-item">
+                                <a class="nav-link btn btn-primary text-white"
+                                   asp-controller="Account" asp-action="SignUp">Sign Up</a>
                             </li>
                         }
                     </ul>
@@ -94,20 +155,84 @@
             </div>
         </nav>
     </header>
+
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
     </div>
+
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2024 - Alpha Stock Data - <a asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+            &copy; 2024 - Alpha Stock Data -
+            <a asp-area="" asp-controller="Home" asp-action="Index">Home</a>
         </div>
     </footer>
+
+    <!-- Scripts -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+
+    <!-- Autocomplete Suggestions Script for Navbar Search -->
+    <script>
+        // AUTOCOMPLETE LOGIC FOR NAVBAR SEARCH
+        document.addEventListener('DOMContentLoaded', function () {
+            const navbarInput = document.getElementById('NavbarCompanySearch');
+            const navbarSuggestions = document.getElementById('navbarSuggestions');
+            const currentCompanyName = '@currentCompanyName'; // Injected from Razor
+
+            if (navbarInput) {
+                navbarInput.addEventListener('input', function () {
+                    const query = this.value.trim();
+                    if (query.length >= 2) {
+                        fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                navbarSuggestions.innerHTML = '';
+                                if (data.length > 0) {
+                                    data.forEach(company => {
+                                        // Exclude the current company if on StockData page
+                                        if (currentCompanyName && company.companyName.toLowerCase() === currentCompanyName.toLowerCase()) {
+                                            return; // Skip adding this company to suggestions
+                                        }
+
+                                        const suggestionItem = document.createElement('a');
+                                        suggestionItem.classList.add('list-group-item', 'list-group-item-action');
+                                        suggestionItem.setAttribute('role', 'option');
+                                        suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
+
+                                        // When a suggestion is clicked
+                                        suggestionItem.addEventListener('click', function () {
+                                            navbarInput.value = company.companyName;
+                                            navbarSuggestions.innerHTML = '';
+                                        });
+
+                                        navbarSuggestions.appendChild(suggestionItem);
+                                    });
+                                } else {
+                                    navbarSuggestions.innerHTML = '<div class="list-group-item">No results found</div>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching suggestions:', error);
+                                navbarSuggestions.innerHTML = '<div class="list-group-item">Error fetching suggestions</div>';
+                            });
+                    } else {
+                        navbarSuggestions.innerHTML = '';
+                    }
+                });
+
+                // Hide suggestions when clicking outside the search input or suggestions dropdown
+                document.addEventListener('click', function (e) {
+                    if (!navbarInput.contains(e.target) && !navbarSuggestions.contains(e.target)) {
+                        navbarSuggestions.innerHTML = '';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
 

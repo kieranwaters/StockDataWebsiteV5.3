@@ -1,65 +1,127 @@
 ﻿@model StockDataWebsite.Models.CompanySelection
 @{
-    ViewData["Title"] = "Home Page";
+    // More descriptive Title & meta description
+    ViewData["Title"] = "Access Comprehensive US Stock Data | Alpha Stock Data";
+    ViewData["Description"] = "Explore our database of over 60 million free stock data records, including annual and quarterly reports, for thousands of US companies.";
 
-    // Set the meta description
-    ViewData["Description"] = "Search our database for US stock data. Access over 60 million pieces of free stock data with historical financial information, including annual and quarterly data going back 10 years.";
+    var currentPage = ViewBag.CurrentPage ?? 1;
+    var totalPages = ViewBag.TotalPages ?? 1;
 }
-<h2>Select a Company for Financial Data</h2>
-<form asp-action="SearchResults" method="get"><div class="form-group"><label for="CompanySearch">Search by Company Name or Symbol</label><input type="text" class="form-control" id="CompanySearch" name="CompanySearch" placeholder="Enter company name or symbol" required /><div id="suggestions" class="list-group"></div></div><button type="submit" class="btn btn-primary custom-margin">Search</button></form>
-<h3>All Companies</h3>
-<table class="table table-striped table-hover">
-    <thead><tr><th>Company Name</th><th>Symbol</th></tr></thead>
-    <tbody>
-        @if (ViewBag.AllCompanies != null)
-        {
-            foreach (var company in ViewBag.AllCompanies)
-            {
-                <tr>
-                    <td><a asp-action="StockData" asp-controller="StockData" asp-route-companyName="@company.CompanyName">@company.CompanyName</a></td>
-                    <td>@company.CompanySymbol</td>
-                </tr>
-            }
-        }
-    </tbody>
-</table>
-<!-- Pagination Buttons (aligned to the right) -->
-<div style="text-align:right">
-    @if (ViewBag.CurrentPage > 1)
-    {
-        <a asp-action="Index" asp-route-page="@(ViewBag.CurrentPage-1)">Previous 100</a>
-    }
-    @if (ViewBag.CurrentPage < ViewBag.TotalPages)
-    {
-        <a asp-action="Index" asp-route-page="@(ViewBag.CurrentPage+1)">Next 100</a>
-    }
-</div>
-<script>
-    document.getElementById('CompanySearch').addEventListener('input',function(){
-        const query=this.value;
-        if(query.length>=2){
-            fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
-            .then(response=>response.json())
-            .then(data=>{
-                const suggestions=document.getElementById('suggestions');
-                suggestions.innerHTML='';
-                if(data.length>0){
-                    data.forEach(company=>{
-                        const suggestionItem=document.createElement('a');
-                        suggestionItem.classList.add('list-group-item','list-group-item-action');
-                        suggestionItem.textContent=`${company.companyName} (${company.companySymbol})`;
-                        suggestionItem.addEventListener('click',function(){
-                            document.getElementById('CompanySearch').value=company.companyName;
-                            suggestions.innerHTML='';
-                        });
-                        suggestions.appendChild(suggestionItem);
-                    });
-                }else{
-                    suggestions.innerHTML='<div class="list-group-item">No results found</div>';
-                }
-            })
-            .catch(error=>console.error('Error fetching suggestions:',error));
-        }
-    });
-</script>
 
+<h1 class="text-center">Access Comprehensive US Stock Data</h1>
+
+<div class="card shadow-lg p-1 mb-2 bg-white rounded">
+    <div class="card-body">
+        <h2 class="card-title text-center">Company Search</h2>
+        <p class="card-text text-center">
+            Quickly browse or search through our extensive collection of US-based companies.
+            Find detailed financial records going back 10 years.
+        </p>
+        <form asp-action="SearchResults" method="get" role="search" aria-label="Search for companies">
+            <div class="form-group">
+                <input type="text"
+                       class="form-control"
+                       id="CompanySearch"
+                       name="CompanySearch"
+                       placeholder="Enter company name or symbol"
+                       required
+                       aria-required="true"
+                       aria-describedby="companySearchHelp" />
+                <div id="suggestions" class="list-group" role="listbox" aria-label="Search suggestions"></div>
+            </div>
+            <div class="text-center mt-3">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<section>
+    <h2>All Companies</h2>
+    @if (ViewBag.AllCompanies != null)
+    {
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th scope="col">Company Name</th>
+                    <th scope="col">Symbol</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var company in ViewBag.AllCompanies)
+                {
+                    <tr>
+                        <td>
+                            <a asp-action="StockData"
+                               asp-controller="StockData"
+                               asp-route-companyName="@company.CompanyName"
+                               title="View financial data for @company.CompanyName">
+                                @company.CompanyName
+                            </a>
+                        </td>
+                        <td>@company.CompanySymbol</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>No companies found.</p>
+    }
+</section>
+
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-end">
+        @if (currentPage > 1)
+        {
+            <li class="page-item">
+                <a class="page-link" asp-action="Index" asp-route-page="@(currentPage - 1)" aria-label="Previous">
+                    <span aria-hidden="true">&laquo; Previous 100</span>
+                </a>
+            </li>
+        }
+        @if (currentPage < totalPages)
+        {
+            <li class="page-item">
+                <a class="page-link" asp-action="Index" asp-route-page="@(currentPage + 1)" aria-label="Next">
+                    <span aria-hidden="true">Next 100 &raquo;</span>
+                </a>
+            </li>
+        }
+    </ul>
+</nav>
+
+@section Scripts {
+    <script>
+        document.getElementById('CompanySearch').addEventListener('input',function(){
+            const query = this.value.trim();
+            if(query.length >= 2){
+                fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
+                .then(response=>response.json())
+                .then(data=>{
+                    const suggestions=document.getElementById('suggestions');
+                    suggestions.innerHTML='';
+                    if(data.length>0){
+                        data.forEach(company=>{
+                            const suggestionItem=document.createElement('a');
+                            suggestionItem.classList.add('list-group-item','list-group-item-action');
+                            suggestionItem.setAttribute('role','option');
+                            suggestionItem.textContent=`${company.companyName} (${company.companySymbol})`;
+                            suggestionItem.addEventListener('click',function(){
+                                document.getElementById('CompanySearch').value=company.companyName;
+                                suggestions.innerHTML='';
+                            });
+                            suggestions.appendChild(suggestionItem);
+                        });
+                    } else {
+                        suggestions.innerHTML='<div class="list-group-item">No results found</div>';
+                    }
+                })
+                .catch(error=>console.error('Error fetching suggestions:',error));
+            } else {
+                document.getElementById('suggestions').innerHTML='';
+            }
+        });
+    </script>
+}
