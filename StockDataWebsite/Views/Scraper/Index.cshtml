@@ -68,13 +68,18 @@
         <button type="submit" class="btn btn-warning custom-margin">Check SEC database for recent reports (6 months)</button>
     </form>
 </div>
-
+<div class="mt-3">
+    <button id="removeNoFinancialEntriesBtn" class="btn btn-danger custom-margin">Remove from CompaniesList names with no financial entries</button>
+    <div id="removeNoFinancialEntriesResult" class="mt-2"></div>
+</div>
 <!-- NEW: Button to scrape all companies -->
 <div class="mt-3">
     <button id="scrapeAllCompaniesBtn" class="btn btn-danger custom-margin">Scrape All Companies</button>
     <div id="scrapeAllCompaniesResult" class="mt-2"></div>
     <button id="scrapeAllOtcUnscrapedBtn" class="btn btn-warning custom-margin">Scrape All Unscraped OTC</button>
     <div id="scrapeAllOtcUnscrapedResult" class="mt-2"></div>
+    <button id="collectStockPriceDataBtn" class="btn btn-primary custom-margin">Collect Stock Price Data</button>
+    <div id="collectStockPriceDataResult" class="mt-2"></div>
 </div>
 <!-- New Section: Extract and Display Unique XBRL Elements -->
 <div class="mt-3">
@@ -109,35 +114,73 @@
                 });
             }
             loadCompanyCounts();
-            const scrapeUkCompaniesBtn=document.getElementById('scrapeUkCompaniesBtn');
-            const scrapeUkCompaniesResult=document.getElementById('scrapeUkCompaniesResult');
-            scrapeUkCompaniesBtn.addEventListener('click',function(){
-                scrapeUkCompaniesBtn.disabled=true;
-                scrapeUkCompaniesResult.innerHTML='<span class="text-info">Scraping UK stocks in progress...</span>';
+
+            // Existing button handlers
+            const scrapeUkCompaniesBtn = document.getElementById('scrapeUkCompaniesBtn');
+            const scrapeUkCompaniesResult = document.getElementById('scrapeUkCompaniesResult');
+            scrapeUkCompaniesBtn.addEventListener('click', function(){
+                scrapeUkCompaniesBtn.disabled = true;
+                scrapeUkCompaniesResult.innerHTML = '<span class="text-info">Scraping UK stocks in progress...</span>';
                 fetch('/Scraper/ScrapeUKCompanies',{
-                    method:'POST',
+                    method: 'POST',
                     headers:{
                         'Content-Type':'application/json',
-                        'RequestVerificationToken':getAntiForgeryToken() // uses your existing getAntiForgeryToken() method
+                        'RequestVerificationToken': getAntiForgeryToken() // uses your existing getAntiForgeryToken() method
                     },
                     body: JSON.stringify({}) // or omit the body entirely if not needed
                 })
-                .then(response=>response.json())
-                .then(data=>{
+                .then(response => response.json())
+                .then(data => {
                     if(data.success){
-                        scrapeUkCompaniesResult.innerHTML=`<span class="text-success">${data.message}</span>`;
+                        scrapeUkCompaniesResult.innerHTML = `<span class="text-success">${data.message}</span>`;
                     } else {
-                        scrapeUkCompaniesResult.innerHTML=`<span class="text-danger">${data.message}</span>`;
+                        scrapeUkCompaniesResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
                     }
                 })
-                .catch(err=>{
+                .catch(err => {
                     console.error(err);
-                    scrapeUkCompaniesResult.innerHTML='<span class="text-danger">An error occurred while scraping UK companies.</span>';
+                    scrapeUkCompaniesResult.innerHTML = '<span class="text-danger">An error occurred while scraping UK companies.</span>';
                 })
-                .finally(()=>{
-                    scrapeUkCompaniesBtn.disabled=false;
+                .finally(() => {
+                    scrapeUkCompaniesBtn.disabled = false;
                 });
             });
+            const collectStockPriceDataBtn = document.getElementById('collectStockPriceDataBtn');
+            const collectStockPriceDataResult = document.getElementById('collectStockPriceDataResult');
+
+            collectStockPriceDataBtn.addEventListener('click', function() {
+                if (!confirm('Are you sure you want to collect and update stock price data? This may take a few minutes.')) {
+                    return;
+                }
+
+                collectStockPriceDataBtn.disabled = true;
+                collectStockPriceDataResult.innerHTML = '<span class="text-info">Collecting stock price data...</span>';
+
+                fetch('/Scraper/CollectStockPriceData', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    body: JSON.stringify({})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        collectStockPriceDataResult.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    } else {
+                        collectStockPriceDataResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error collecting stock price data:', error);
+                    collectStockPriceDataResult.innerHTML = '<span class="text-danger">An error occurred while collecting stock price data.</span>';
+                })
+                .finally(() => {
+                    collectStockPriceDataBtn.disabled = false;
+                });
+            });
+
             const scrapeButton = document.getElementById('scrapeUnscrapedReports');
             let isScraping = false;
             scrapeButton.addEventListener('click', function() {
@@ -191,6 +234,7 @@
                     isScraping = false;
                 }
             });
+
             const continueScrapeButton = document.getElementById('continueScrapingReports');
             let isContinuingScraping = false;
             continueScrapeButton.addEventListener('click', function() {
@@ -244,6 +288,7 @@
                     isContinuingScraping = false;
                 }
             });
+
             const scrapeAllOtcUnscrapedBtn = document.getElementById('scrapeAllOtcUnscrapedBtn');
             const scrapeAllOtcUnscrapedResult = document.getElementById('scrapeAllOtcUnscrapedResult');
             scrapeAllOtcUnscrapedBtn.addEventListener('click', function() {
@@ -278,10 +323,12 @@
                     scrapeAllOtcUnscrapedBtn.textContent = 'Scrape All Unscraped OTC';
                 });
             });
+
             function getAntiForgeryToken() {
                 const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
                 return tokenElement ? tokenElement.value : '';
             }
+
             const parseXbrlBtn = document.getElementById('parseXbrlBtn');
             const parseXbrlResult = document.getElementById('parseXbrlResult');
             const parseXbrlLoading = document.getElementById('parseXbrlLoading');
@@ -315,6 +362,7 @@
                     parseXbrlLoading.style.display = 'none';
                 });
             });
+
             const countNumericalValuesBtn = document.getElementById('countNumericalValuesBtn');
             const countResult = document.getElementById('countResult');
             countNumericalValuesBtn.addEventListener('click', function() {
@@ -343,6 +391,7 @@
                     countNumericalValuesBtn.disabled = false;
                 });
             });
+
             const extractXbrlElementsBtn = document.getElementById('extractXbrlElementsBtn');
             const uniqueXbrlElementsResult = document.getElementById('uniqueXbrlElementsResult');
             extractXbrlElementsBtn.addEventListener('click', function() {
@@ -378,6 +427,7 @@
                     extractXbrlElementsBtn.disabled = false;
                 });
             });
+
             const scrapeAllCompaniesBtn = document.getElementById('scrapeAllCompaniesBtn');
             const scrapeAllCompaniesResult = document.getElementById('scrapeAllCompaniesResult');
             let isScrapingAll = false;
@@ -418,154 +468,157 @@
                     });
                 }
             });
-            // NEW: Handle Scrape All OTC Companies button
-            const scrapeAllOtcCompaniesBtn = document.getElementById('scrapeAllOtcCompaniesBtn');
-            const scrapeAllOtcCompaniesResult = document.getElementById('scrapeAllOtcCompaniesResult');
-            let isScrapingAllOtc = false;
-            scrapeAllOtcCompaniesBtn.addEventListener('click', function() {
-                if (isScrapingAllOtc) {
-                    alert('Scraping is already in progress.');
+
+            // NEW: Handle Remove Companies with No Financial Entries button
+            const removeNoFinancialEntriesBtn = document.getElementById('removeNoFinancialEntriesBtn');
+            const removeNoFinancialEntriesResult = document.getElementById('removeNoFinancialEntriesResult');
+
+            removeNoFinancialEntriesBtn.addEventListener('click', function() {
+                if (!confirm('Are you sure you want to remove all companies with no financial entries from CompaniesList? This action cannot be undone.')) {
                     return;
                 }
-                if (!confirm('Are you sure you want to scrape ALL OTC companies? This may take a significant amount of time.')) {
-                    return;
-                }
-                isScrapingAllOtc = true;
-                scrapeAllOtcCompaniesBtn.disabled = true;
-                scrapeAllOtcCompaniesBtn.textContent = 'Scraping All OTC Company Names to Add to dbo.CompaniesList...';
-                scrapeAllOtcCompaniesResult.innerHTML = '<span class="text-info">Scraping all OTC companies in progress...</span>';
-                fetch('/Scraper/ScrapeAllOtcCompanies', {
+
+                removeNoFinancialEntriesBtn.disabled = true;
+                removeNoFinancialEntriesResult.innerHTML = '<span class="text-info">Processing...</span>';
+
+                fetch('/Scraper/RemoveCompaniesWithNoFinancialEntries', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'RequestVerificationToken': getAntiForgeryToken()
                     },
-                    body: JSON.stringify({})
+                    body: JSON.stringify({}) // Empty body since no parameters are needed
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        scrapeAllOtcCompaniesResult.innerHTML = `<span class="text-success">${data.message}</span>`;
+                        let message = `<span class="text-success">${data.message}</span>`;
+                        if (data.removedCompanies && data.removedCompanies.length > 0) {
+                            message += `<h5 class="mt-3">Removed Companies:</h5><ul class="list-group">`;
+                            data.removedCompanies.forEach(company => {
+                                message += `<li class="list-group-item">${company.CompanyName} (${company.CompanySymbol})</li>`;
+                            });
+                            message += `</ul>`;
+                        }
+                        removeNoFinancialEntriesResult.innerHTML = message;
                     } else {
-                        scrapeAllOtcCompaniesResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
+                        removeNoFinancialEntriesResult.innerHTML = `<span class="text-danger">${data.message}</span>`;
                     }
                 })
                 .catch(error => {
-                    console.error('Error scraping all OTC companies:', error);
-                    scrapeAllOtcCompaniesResult.innerHTML = '<span class="text-danger">An error occurred while scraping all OTC companies.</span>';
+                    console.error('Error:', error);
+                    removeNoFinancialEntriesResult.innerHTML = '<span class="text-danger">An error occurred while processing your request.</span>';
                 })
                 .finally(() => {
-                    scrapeAllOtcCompaniesBtn.disabled = false;
-                    scrapeAllOtcCompaniesBtn.textContent = 'Scrape All OTC Companies';
-                    isScrapingAllOtc = false;
+                    removeNoFinancialEntriesBtn.disabled = false;
                     // Optionally, refresh company counts or other UI elements
+                    loadCompanyCounts();
                 });
             });
-            function getAntiForgeryToken(){
-                const tokenElement=document.querySelector('input[name="__RequestVerificationToken"]');
-                return tokenElement?tokenElement.value:'';
-            }
-            // Handle company search input for suggestions
-            const companySearchInput=document.getElementById('CompanySearch');
-            const suggestionsContainer=document.getElementById('suggestions');
-            const selectedCompaniesList=document.getElementById('selectedCompaniesList');
-            const hiddenCompanySymbolInput=document.querySelector('input[name="CompanySymbol"]');
-            companySearchInput.addEventListener('input',function(){
-                const query=this.value.trim();
-                if(query.length>=2){
+
+            // Existing company search and selection handlers
+            const companySearchInput = document.getElementById('CompanySearch');
+            const suggestionsContainer = document.getElementById('suggestions');
+            const selectedCompaniesList = document.getElementById('selectedCompaniesList');
+            const hiddenCompanySymbolInput = document.querySelector('input[name="CompanySymbol"]');
+            companySearchInput.addEventListener('input', function(){
+                const query = this.value.trim();
+                if(query.length >= 2){
                     fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
-                    .then(response=>response.json())
-                    .then(data=>{
-                        suggestionsContainer.innerHTML='';
-                        if(data.length>0){
-                            data.forEach(company=>{
-                                const suggestionItem=document.createElement('a');
+                    .then(response => response.json())
+                    .then(data => {
+                        suggestionsContainer.innerHTML = '';
+                        if(data.length > 0){
+                            data.forEach(company => {
+                                const suggestionItem = document.createElement('a');
                                 suggestionItem.classList.add('list-group-item','list-group-item-action');
-                                suggestionItem.textContent=`${company.companyName} (${company.companySymbol})`;
-                                suggestionItem.addEventListener('click',function(){
-                                    selectedCompaniesList.innerHTML='';
-                                    const listItem=document.createElement('li');
+                                suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
+                                suggestionItem.addEventListener('click', function(){
+                                    selectedCompaniesList.innerHTML = '';
+                                    const listItem = document.createElement('li');
                                     listItem.classList.add('list-group-item');
-                                    listItem.textContent=`${company.companyName} (${company.companySymbol})`;
-                                    listItem.dataset.symbol=company.companySymbol;
+                                    listItem.textContent = `${company.companyName} (${company.companySymbol})`;
+                                    listItem.dataset.symbol = company.companySymbol;
                                     selectedCompaniesList.appendChild(listItem);
-                                    hiddenCompanySymbolInput.value=company.companySymbol;
-                                    companySearchInput.value='';
-                                    suggestionsContainer.innerHTML='';
+                                    hiddenCompanySymbolInput.value = company.companySymbol;
+                                    companySearchInput.value = '';
+                                    suggestionsContainer.innerHTML = '';
                                 });
                                 suggestionsContainer.appendChild(suggestionItem);
                             });
                         }
                         else{
-                            const noResultsItem=document.createElement('div');
+                            const noResultsItem = document.createElement('div');
                             noResultsItem.classList.add('list-group-item');
-                            noResultsItem.textContent='No results found';
+                            noResultsItem.textContent = 'No results found';
                             suggestionsContainer.appendChild(noResultsItem);
                         }
                     })
-                    .catch(error=>console.error('Error fetching suggestions:',error));
-                }else{
-                    suggestionsContainer.innerHTML='';
+                    .catch(error => console.error('Error fetching suggestions:', error));
+                } else {
+                    suggestionsContainer.innerHTML = '';
                 }
             });
-            const removeCompanyButton=document.getElementById('removeCompany');
-            removeCompanyButton.addEventListener('click',function(){
-                const selectedCompanyItem=selectedCompaniesList.querySelector('li');
+
+            const removeCompanyButton = document.getElementById('removeCompany');
+            removeCompanyButton.addEventListener('click', function(){
+                const selectedCompanyItem = selectedCompaniesList.querySelector('li');
                 if(selectedCompanyItem){
-                    const companySymbol=selectedCompanyItem.getAttribute('data-symbol');
-                    fetch('/Scraper/RemoveSelectedCompany',{
-                        method:'POST',
-                        headers:{'Content-Type':'application/json','RequestVerificationToken':getAntiForgeryToken()},
-                        body:JSON.stringify({companySymbol:companySymbol})
+                    const companySymbol = selectedCompanyItem.getAttribute('data-symbol');
+                    fetch('/Scraper/RemoveSelectedCompany', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json','RequestVerificationToken':getAntiForgeryToken()},
+                        body: JSON.stringify({companySymbol: companySymbol})
                     })
-                    .then(response=>response.json())
-                    .then(data=>{
+                    .then(response => response.json())
+                    .then(data => {
                         if(data.success){
                             selectedCompaniesList.removeChild(selectedCompanyItem);
-                            hiddenCompanySymbolInput.value='';
-                        }else{
+                            hiddenCompanySymbolInput.value = '';
+                        } else {
                             alert(data.message);
                         }
                     })
-                    .catch(error=>{
-                        console.error('Error removing company:',error);
+                    .catch(error => {
+                        console.error('Error removing company:', error);
                         alert('An error occurred while removing the company.');
                     });
-                }else{
+                } else {
                     alert('Please select a company to remove.');
                 }
             });
+
             // Reload company counts periodically (e.g., every 5 minutes)
-            setInterval(loadCompanyCounts,300000);
+            setInterval(loadCompanyCounts, 300000);
         });
     </script>
     <script>
-        document.addEventListener("DOMContentLoaded",function(){
-            const scrapeOTCBtn=document.getElementById('scrapeOTCButton');
-            const scrapeOTCResult=document.getElementById('scrapeOTCResult');
-            scrapeOTCBtn.addEventListener('click',function(){
-                const symbol=prompt("Enter the OTC symbol to scrape (e.g. 'NWGC'):","");
-                if(!symbol)return;
-                fetch('/Scraper/ScrapeOTCFinancials?symbol='+encodeURIComponent(symbol),{
-                    method:'POST',
-                    headers:{'Content-Type':'application/json','RequestVerificationToken':getAntiForgeryToken()}
+        document.addEventListener("DOMContentLoaded", function(){
+            const scrapeOTCBtn = document.getElementById('scrapeOTCButton');
+            const scrapeOTCResult = document.getElementById('scrapeOTCResult');
+            scrapeOTCBtn.addEventListener('click', function(){
+                const symbol = prompt("Enter the OTC symbol to scrape (e.g. 'NWGC'):", "");
+                if(!symbol) return;
+                fetch('/Scraper/ScrapeOTCFinancials?symbol=' + encodeURIComponent(symbol), {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','RequestVerificationToken':getAntiForgeryToken()}
                 })
-                .then(r=>r.json())
-                .then(d=>{
+                .then(r => r.json())
+                .then(d => {
                     if(d.success){
-                        scrapeOTCResult.innerHTML='<span class="text-success">'+d.message+'</span>';
-                    }else{
-                        scrapeOTCResult.innerHTML='<span class="text-danger">'+d.message+'</span>';
+                        scrapeOTCResult.innerHTML = '<span class="text-success">' + d.message + '</span>';
+                    } else {
+                        scrapeOTCResult.innerHTML = '<span class="text-danger">' + d.message + '</span>';
                     }
                 })
-                .catch(e=>{
+                .catch(e => {
                     console.error(e);
-                    scrapeOTCResult.innerHTML='<span class="text-danger">An error occurred.</span>';
+                    scrapeOTCResult.innerHTML = '<span class="text-danger">An error occurred.</span>';
                 });
             });
             function getAntiForgeryToken(){
-                const tokenElement=document.querySelector('input[name="__RequestVerificationToken"]');
-                return tokenElement?tokenElement.value:'';
+                const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+                return tokenElement ? tokenElement.value : '';
             }
         });
     </script>

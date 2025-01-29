@@ -1,0 +1,11 @@
+﻿User-agent: *
+Disallow: /admin/
+Disallow: /temp/
+
+Allow: /js/
+Allow: /css/
+
+Sitemap: https://alphastockdata.com/sitemap.xml
+Sitemap: https://alphastockdata.com/sitemap-stocks-1.xml
+Sitemap: https://alphastockdata.com/sitemap-stocks-2.xml
+Sitemap: https://alphastockdata.com/sitemap-stocks-3.xml

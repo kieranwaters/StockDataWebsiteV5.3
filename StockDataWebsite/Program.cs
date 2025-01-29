@@ -20,6 +20,7 @@ if (builder.Environment.IsProduction())
 
 // Add services to the container
 builder.Services.AddControllersWithViews();
+builder.Services.AddTransient<PriceData>();
 
 // Register ApplicationDbContext with the DI container
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

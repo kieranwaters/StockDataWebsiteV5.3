@@ -2,12 +2,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using StockDataWebsite.Data;
 using StockDataWebsite.Models;
 using StockScraperV3;
 using System.Data;
 using System.Data.SqlClient;
+
 
 namespace StockDataWebsite.Controllers
 {/// <summary>
@@ -35,18 +37,41 @@ namespace StockDataWebsite.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ScraperController> _logger;
         private readonly URL _urlService; // Injected URL service
+        private readonly PriceData _priceData;
 
         // Constructor injection of XBRLElementData and URL
         public ScraperController(
-            XBRLElementData xbrlScraperService,
-            ApplicationDbContext context,
-            ILogger<ScraperController> logger,
-            URL urlService) // Add URL to constructor
+           XBRLElementData xbrlScraperService,
+           ApplicationDbContext context,
+           ILogger<ScraperController> logger,
+           URL urlService,
+           PriceData priceData) // Inject PriceData
         {
             _xbrlScraperService = xbrlScraperService;
             _context = context;
             _logger = logger;
-            _urlService = urlService; // Assign to private field
+            _urlService = urlService;
+            _priceData = priceData;
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CollectStockPriceData()
+        {
+            _logger.LogInformation("CollectStockPriceData action triggered.");
+
+            try
+            {
+                // Run the scraping in a background task to avoid blocking
+                await Task.Run(() => _priceData.ScrapeTradingViewWithoutSelenium()); 
+
+                _logger.LogInformation("Stock price data has been successfully collected and updated.");
+                return Json(new { success = true, message = "Stock price data has been successfully collected and updated." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"CollectStockPriceData encountered an error: {ex.Message}");
+                return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
         }
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -555,6 +580,70 @@ namespace StockDataWebsite.Controllers
                 return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
             }
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveCompaniesWithNoFinancialEntries()
+        {
+            try
+            {
+                _logger.LogInformation("RemoveCompaniesWithNoFinancialEntries action triggered.");
+
+                // Define the SQL command to delete companies with no financial entries
+                string deleteCommand = @"
+                    DELETE FROM [dbo].[CompaniesList]
+                    WHERE NOT EXISTS (
+                        SELECT 1 
+                        FROM [dbo].[FinancialData] fd 
+                        WHERE fd.[CompanyID] = [dbo].[CompaniesList].[CompanyID]
+                    );";
+
+                // Optional: To get the number of rows deleted, use OUTPUT
+                string countCommand = @"
+                    SELECT COUNT(*) 
+                    FROM [dbo].[CompaniesList] cl
+                    WHERE NOT EXISTS (
+                        SELECT 1 
+                        FROM [dbo].[FinancialData] fd 
+                        WHERE fd.[CompanyID] = cl.[CompanyID]
+                    );";
+
+                long companiesToRemove = 0;
+
+                using (SqlConnection conn = new SqlConnection(ConnectionString))
+                {
+                    await conn.OpenAsync();
+
+                    // First, count how many companies will be removed
+                    using (SqlCommand countCmd = new SqlCommand(countCommand, conn))
+                    {
+                        object countResult = await countCmd.ExecuteScalarAsync();
+                        if (countResult != null && long.TryParse(countResult.ToString(), out long count))
+                        {
+                            companiesToRemove = count;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to retrieve the count of companies to remove.");
+                            return Json(new { success = false, message = "Failed to determine the number of companies to remove." });
+                        }
+                    }
+
+                    // Then, execute the delete command
+                    using (SqlCommand deleteCmd = new SqlCommand(deleteCommand, conn))
+                    {
+                        int rowsAffected = await deleteCmd.ExecuteNonQueryAsync();
+                        _logger.LogInformation($"Removed {rowsAffected} companies with no financial entries.");
+                        return Json(new { success = true, message = $"Successfully removed {rowsAffected} companies with no financial entries." });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while removing companies with no financial entries.");
+                return Json(new { success = false, message = $"An error occurred: {ex.Message}" });
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ScrapeUKCompanies()
