@@ -14,7 +14,7 @@ namespace StockDataWebsite.Controllers
         }
         public IActionResult Index(int page = 1)// Added page parameter for pagination
         {
-            int pageSize = 100; // Number of records per page
+            int pageSize = 200; // Number of records per page
             var query = _context.CompaniesList.Select(c => new { c.CompanyName, c.CompanySymbol }); // Query all companies
             int totalItems = query.Count(); // Count total records
             int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize); // Calculate total pages
