@@ -1,12 +1,73 @@
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.EntityFrameworkCore;
+using StockDataWebsite.Controllers;
 using StockDataWebsite.Data;
 using StockScraperV3; // Reference to XBRLElementData
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Conditional Kestrel configuration
+// 1. Register Services
+
+// Add Controllers with Views
+builder.Services.AddControllersWithViews();
+
+// Register ApplicationDbContext with the DI container
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+
+// Register XBRLElementData with the DI container
+builder.Services.AddScoped<XBRLElementData>(provider =>
+    new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
+
+// Register PriceData as Singleton
+builder.Services.AddSingleton<PriceData>();
+
+// Register Hosted Service for PriceData
+builder.Services.AddHostedService<PriceDataHostedService>();
+
+// Register URL (Assuming 'URL' is a custom class. If it's System.URL, this should be renamed to avoid conflicts)
+builder.Services.AddTransient<URL>(provider =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("StockDataScraperDatabase");
+    return new URL(connectionString);
+});
+
+// Register IHttpContextAccessor
+builder.Services.AddHttpContextAccessor();
+
+// Add TwelveDataService as Singleton
+builder.Services.AddSingleton<TwelveDataService>(sp => new TwelveDataService(
+    new HttpClient(),
+    "beaacd3af7c247a58531686c3838c04b"
+));
+
+// Add Distributed Memory Cache and Session
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Session timeout
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// Add Response Caching services
+builder.Services.AddResponseCaching();
+
+// Add Response Compression services
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "image/svg+xml" }
+    );
+});
+
+// 2. Configure Kestrel (Conditional for Production)
 if (builder.Environment.IsProduction())
 {
     builder.WebHost.ConfigureKestrel(options =>
@@ -34,57 +95,9 @@ if (builder.Environment.IsProduction())
     });
 }
 
-// Add services to the container
-builder.Services.AddControllersWithViews();
-builder.Services.AddTransient<PriceData>();
-
-// Register ApplicationDbContext with the DI container
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
-
-// Register XBRLElementData with the DI container
-builder.Services.AddScoped<XBRLElementData>(provider =>
-    new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
-
-builder.Services.AddTransient<URL>(provider =>
-{
-    var configuration = provider.GetRequiredService<IConfiguration>();
-    var connectionString = configuration.GetConnectionString("StockDataScraperDatabase");
-    return new URL(connectionString);
-});
-
-builder.Services.AddHttpContextAccessor();
-
-// Add distributed memory cache and session
-builder.Services.AddSingleton<TwelveDataService>(sp => new TwelveDataService(
-    new HttpClient(),
-    "beaacd3af7c247a58531686c3838c04b"
-));
-
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Session timeout
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
-
-// Add Response Caching services
-builder.Services.AddResponseCaching();
-
-// Add Response Compression services
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
-        new[] { "image/svg+xml" }
-    );
-});
-
 var app = builder.Build();
+
+// 3. Configure Middleware
 
 // Custom middleware to remove server headers
 app.Use(async (context, next) =>
@@ -94,7 +107,7 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// Use session middleware
+// Use Session Middleware
 app.UseSession();
 
 // Use Response Compression Middleware
