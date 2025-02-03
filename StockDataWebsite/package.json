@@ -1,0 +1,14 @@
+{
+  "name": "AlphaStockData",
+  "version": "1.0.0",
+  "description": "Stock Data Website",
+  "main": "index.js",
+  "scripts": {
+    "minify": "terser wwwroot/js/navbar-autocomplete.js -o wwwroot/js/navbar-autocomplete.min.js -c -m"
+  },
+  "devDependencies": {
+    "terser": "^5.14.2"
+  },
+  "author": "Kieran Waters",
+  "license": "ISC"
+}

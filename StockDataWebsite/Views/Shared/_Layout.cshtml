@@ -175,64 +175,12 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 
-    <!-- Autocomplete Suggestions Script for Navbar Search -->
+    <!-- Pass currentCompanyName to JavaScript -->
     <script>
-        // AUTOCOMPLETE LOGIC FOR NAVBAR SEARCH
-        document.addEventListener('DOMContentLoaded', function () {
-            const navbarInput = document.getElementById('NavbarCompanySearch');
-            const navbarSuggestions = document.getElementById('navbarSuggestions');
-            const currentCompanyName = '@currentCompanyName'; // Injected from Razor
-
-            if (navbarInput) {
-                navbarInput.addEventListener('input', function () {
-                    const query = this.value.trim();
-                    if (query.length >= 2) {
-                        fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                navbarSuggestions.innerHTML = '';
-                                if (data.length > 0) {
-                                    data.forEach(company => {
-                                        // Exclude the current company if on StockData page
-                                        if (currentCompanyName && company.companyName.toLowerCase() === currentCompanyName.toLowerCase()) {
-                                            return; // Skip adding this company to suggestions
-                                        }
-
-                                        const suggestionItem = document.createElement('a');
-                                        suggestionItem.classList.add('list-group-item', 'list-group-item-action');
-                                        suggestionItem.setAttribute('role', 'option');
-                                        suggestionItem.textContent = `${company.companyName} (${company.companySymbol})`;
-
-                                        // When a suggestion is clicked
-                                        suggestionItem.addEventListener('click', function () {
-                                            navbarInput.value = company.companyName;
-                                            navbarSuggestions.innerHTML = '';
-                                        });
-
-                                        navbarSuggestions.appendChild(suggestionItem);
-                                    });
-                                } else {
-                                    navbarSuggestions.innerHTML = '<div class="list-group-item">No results found</div>';
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error fetching suggestions:', error);
-                                navbarSuggestions.innerHTML = '<div class="list-group-item">Error fetching suggestions</div>';
-                            });
-                    } else {
-                        navbarSuggestions.innerHTML = '';
-                    }
-                });
-
-                // Hide suggestions when clicking outside the search input or suggestions dropdown
-                document.addEventListener('click', function (e) {
-                    if (!navbarInput.contains(e.target) && !navbarSuggestions.contains(e.target)) {
-                        navbarSuggestions.innerHTML = '';
-                    }
-                });
-            }
-        });
+        window.currentCompanyName = '@currentCompanyName';
     </script>
+
+    <!-- External Minified Autocomplete Script -->
+    <script src="~/js/navbar-autocomplete.min.js" asp-append-version="true"></script>
 </body>
 </html>
-

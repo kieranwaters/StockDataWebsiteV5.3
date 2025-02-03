@@ -32,20 +32,33 @@
 }
 
 <!-- JSON-LD Structured Data for SEO -->
-<script type="application/ld+json">
-    @Html.Raw(@"{
+@{
+    // Ensure company name and symbol are safe for JSON
+    string safeCompanyName = Model.CompanyName?.Replace("\\", "\\\\").Replace("\"", "\\\"") ?? "";
+    string safeCompanySymbol = Model.CompanySymbol?.Replace("\\", "\\\\").Replace("\"", "\\\"") ?? "";
+
+    // Generate JSON string separately before using it inside @Html.Raw()
+    string jsonLdData = $@"
+    {{
       ""@context"": ""https://schema.org"",
       ""@type"": ""FinancialService"",
       ""name"": ""Alpha Stock Data"",
-      ""description"": ""Comprehensive financial reports and stock data service, featuring real-time and historical data for " + @Model.CompanyName + @" (" + @Model.CompanySymbol + @")."",
-      ""url"": ""https://www.alphastockdata.com/StockData?companyName=" + UrlEncode(Model.CompanyName) + @""",
+      ""description"": ""Testing JSON snippet for {safeCompanyName} ({safeCompanySymbol})."",
+      ""url"": ""https://www.alphastockdata.com/StockData?companyName={UrlEncode(safeCompanyName)}"",
       ""logo"": ""https://www.alphastockdata.com/images/logo.png"",
+      ""telephone"": ""N/A"",
+      ""priceRange"": ""0"",
+      ""address"": ""31 Dare Rd, Birmingham, B236PE, United Kingdom"",
       ""sameAs"": [
         ""https://x.com/AlphaStockData""
       ],
       ""serviceType"": ""StockData"",
       ""areaServed"": ""United States""
-    }")
+    }}";
+}
+
+<script type="application/ld+json">
+    @Html.Raw(jsonLdData)
 </script>
 
 <style>

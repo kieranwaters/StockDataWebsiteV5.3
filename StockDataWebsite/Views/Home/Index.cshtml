@@ -37,20 +37,26 @@
         sb.AppendLine("  \"@context\": \"https://schema.org\",");
         sb.AppendLine("  \"@type\": \"ItemList\",");
         sb.AppendLine("  \"itemListElement\": [");
+
         for (int i = 0; i < ViewBag.AllCompanies.Count; i++)
         {
             var c = ViewBag.AllCompanies[i];
+            // Escape backslashes in the company name
+            var safeName = c.CompanyName?.Replace("\\", "\\\\") ?? "";
+
             sb.AppendLine("    {");
             sb.AppendLine("      \"@type\": \"ListItem\",");
             sb.AppendLine($"      \"position\": {i + 1},");
             sb.AppendLine("      \"item\": {");
             sb.AppendLine("        \"@type\": \"Organization\",");
-            sb.AppendLine($"        \"name\": \"{c.CompanyName}\",");
+            // Use safeName to avoid bad escape sequences
+            sb.AppendLine($"        \"name\": \"{safeName}\",");
             sb.AppendLine($"        \"url\": \"https://www.yourdomain.com/StockData/StockData?companyName={UrlEncode(c.CompanyName)}\",");
             sb.AppendLine($"        \"tickerSymbol\": \"{c.CompanySymbol}\"");
             sb.AppendLine("      }");
             sb.AppendLine(i < ViewBag.AllCompanies.Count - 1 ? "    }," : "    }");
         }
+
         sb.AppendLine("  ]");
         sb.AppendLine("}");
         itemListJson = sb.ToString();
@@ -133,33 +139,33 @@
     @section Scripts {
         <script>
             document.getElementById('CompanySearch').addEventListener('input',function(){
-            const query=this.value.trim();
-            if(query.length>=2){
-            fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
-            .then(response=>response.json())
-            .then(data=>{
-            const suggestions=document.getElementById('suggestions');
-            suggestions.innerHTML='';
-            if(data.length>0){
-            data.forEach(company=>{
-            const suggestionItem=document.createElement('a');
-            suggestionItem.classList.add('list-group-item','list-group-item-action');
-            suggestionItem.setAttribute('role','option');
-            suggestionItem.textContent=`${company.companyName} (${company.companySymbol})`;
-            suggestionItem.addEventListener('click',function(){
-            document.getElementById('CompanySearch').value=company.companyName;
-            suggestions.innerHTML='';
-            });
-            suggestions.appendChild(suggestionItem);
-            });
-            }else{
-            suggestions.innerHTML='<div class="list-group-item">No results found</div>';
-            }
-            })
-            .catch(error=>console.error('Error fetching suggestions:',error));
-            }else{
-            document.getElementById('suggestions').innerHTML='';
-            }
+                const query=this.value.trim();
+                if(query.length>=2){
+                    fetch(`/api/companies/search?query=${encodeURIComponent(query)}`)
+                    .then(response=>response.json())
+                    .then(data=>{
+                        const suggestions=document.getElementById('suggestions');
+                        suggestions.innerHTML='';
+                        if(data.length>0){
+                            data.forEach(company=>{
+                                const suggestionItem=document.createElement('a');
+                                suggestionItem.classList.add('list-group-item','list-group-item-action');
+                                suggestionItem.setAttribute('role','option');
+                                suggestionItem.textContent=`${company.companyName} (${company.companySymbol})`;
+                                suggestionItem.addEventListener('click',function(){
+                                    document.getElementById('CompanySearch').value=company.companyName;
+                                    suggestions.innerHTML='';
+                                });
+                                suggestions.appendChild(suggestionItem);
+                            });
+                        }else{
+                            suggestions.innerHTML='<div class="list-group-item">No results found</div>';
+                        }
+                    })
+                    .catch(error=>console.error('Error fetching suggestions:',error));
+                }else{
+                    document.getElementById('suggestions').innerHTML='';
+                }
             });
         </script>
     }
