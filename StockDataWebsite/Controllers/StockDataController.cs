@@ -40,16 +40,16 @@ namespace StockDataWebsite.Controllers
                 }).ToList();
             }
         }
-        private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName)
-        {
-            var company = _context.CompaniesList
-                .Where(c => c.CompanyName.ToLower() == companyName.ToLower() ||
-                            c.CompanySymbol.ToLower() == companyName.ToLower())
-                .Select(c => new { c.CompanyID, c.CompanySymbol })
-                .FirstOrDefault();
-            if (company == null) return (0, null);
-            return (company.CompanyID, company.CompanySymbol);
+        private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName) 
+        { 
+            if (string.IsNullOrWhiteSpace(companyName)) 
+                return (0, null); 
+            var normalizedName = companyName.Trim().ToLower(); 
+            var company = _context.CompaniesList.FirstOrDefault(c => (c.CompanyName != null && c.CompanyName.Trim().ToLower() == normalizedName) 
+            || (c.CompanySymbol != null && c.CompanySymbol.Trim().ToLower() == normalizedName)); 
+            return company == null ? (0, null) : (company.CompanyID, company.CompanySymbol); 
         }
+
         public async Task<IActionResult> StockData(string companyName, string dataType = "annual",
                                                   string baseType = null, string yearFilter = "all")
         {

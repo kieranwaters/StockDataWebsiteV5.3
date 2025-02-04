@@ -1,0 +1,25 @@
+﻿[
+  {
+    "outputFileName": "wwwroot/css/site.bundle.min.css",
+    "inputFiles": [
+      "wwwroot/css/site.css",
+      "wwwroot/StockDataWebsite.styles.css"
+    ],
+    "minify": {
+      "enabled": true,
+      "renameLocals": true
+    }
+  },
+  {
+    "outputFileName": "wwwroot/js/site.bundle.min.js",
+    "inputFiles": [
+      "wwwroot/lib/jquery/dist/jquery.min.js",
+      "wwwroot/lib/bootstrap/dist/js/bootstrap.bundle.min.js",
+      "wwwroot/js/site.js",
+      "wwwroot/js/navbar-autocomplete.min.js"
+    ],
+    "minify": {
+      "enabled": true
+    }
+  }
+]

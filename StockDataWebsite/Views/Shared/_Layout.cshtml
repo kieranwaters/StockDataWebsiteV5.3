@@ -5,8 +5,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5803746423727856"
-            crossorigin="anonymous"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5803746423727856" crossorigin="anonymous"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -40,18 +39,17 @@
     <!-- Canonical URL Fallback -->
     <link rel="canonical" href="https://www.alphastockdata.com/" />
 
-    <!-- Favicon (Optional) -->
-    <link rel="icon" type="image/png" sizes="32x32" href="~/images/favicon-32x32.png" />
+    <!-- Favicon (Using icon.jpg) -->
+    <link rel="icon" type="image/jpeg" href="~/images/icon.jpg" />
 
-    <!-- Bootstrap, Font Awesome, Site CSS -->
+    <!-- Bootstrap, Font Awesome, Bundled Site CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
           integrity="sha512-pVn6SAHs/...=="
           crossorigin="anonymous"
           referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/StockDataWebsite.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.bundle.min.css" asp-append-version="true" />
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-TL41QQ3KL4"></script>
@@ -169,18 +167,13 @@
         </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    <!-- Bundled local JavaScript files -->
+    <script src="~/js/site.bundle.min.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 
     <!-- Pass currentCompanyName to JavaScript -->
     <script>
         window.currentCompanyName = '@currentCompanyName';
     </script>
-
-    <!-- External Minified Autocomplete Script -->
-    <script src="~/js/navbar-autocomplete.min.js" asp-append-version="true"></script>
 </body>
 </html>
