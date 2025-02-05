@@ -22,7 +22,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<XBRLElementData>(provider =>
     new XBRLElementData(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
-
+builder.Services.AddControllers();
 // Register PriceData as Singleton
 builder.Services.AddSingleton<PriceData>();
 
@@ -149,6 +149,15 @@ app.UseAuthorization();
 
 // Map attribute-routed controllers
 app.MapControllers();
+// In Startup.ConfigureServices:
+// Tells ASP.NET Core we want to serve controller endpoints
+
+// In Startup.Configure:
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers(); // Maps attribute-routed controllers like the one above
+});
+
 
 // Map conventional default route
 app.MapDefaultControllerRoute();
