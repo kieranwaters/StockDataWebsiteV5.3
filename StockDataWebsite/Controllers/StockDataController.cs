@@ -49,18 +49,23 @@ namespace StockDataWebsite.Controllers
             || (c.CompanySymbol != null && c.CompanySymbol.Trim().ToLower() == normalizedName)); 
             return company == null ? (0, null) : (company.CompanyID, company.CompanySymbol); 
         }
-
-        public async Task<IActionResult> StockData(string companyName, string dataType = "annual",
-                                                  string baseType = null, string yearFilter = "all")
+        public async Task<IActionResult> StockData(string companyName, string dataType = "annual", string baseType = null, string yearFilter = "all")
         {
             try
             {
-                // Validate and sanitize dataType
-                // The allowed values are now "annual", "quarterly", and "enhanced"
-                if (dataType != "annual" && dataType != "quarterly" && dataType != "enhanced")
-                {
-                    dataType = "annual";
-                }
+                if (dataType != "annual" && dataType != "quarterly" && dataType != "enhanced") dataType = "annual"; // Validate dataType if(baseType==null){ if(dataType=="enhanced") baseType="annual"; else baseType=dataType; } // Determine baseType var (companyId,companySymbol)=GetCompanyDetails(companyName); if(companyId==0){ _logger.LogWarning($"StockData: Company not found for Name = {companyName}"); return BadRequest("Company not found."); } var dataTypeForFetching=(dataType=="enhanced")?baseType:dataType; var (recentReportPairs,recentReportKeys,financialDataRecords,recentReports)=FetchRecentReportsAndData(companyId,dataTypeForFetching); if(!financialDataRecords.Any()){ _logger.LogWarning($"StockData: No financial records found for CompanyID = {companyId}"); return BadRequest("No financial records found."); } List<StatementFinancialData> orderedStatements; List<ReportPeriod> reportPeriods=CreateReportPeriods(dataTypeForFetching,recentReportPairs); if(dataType=="enhanced"){ var financialDataRecordsLookup=financialDataRecords.ToDictionary(fd=>$"{fd.Year.Value}-{fd.Quarter}",fd=>fd); var xbrlElements=ExtractXbrlElements(financialDataRecordsLookup,recentReportPairs); var displayMetrics=xbrlElements.Select(kvp=>new DisplayMetricRow1{ DisplayName=kvp.Key,Values=kvp.Value.ToList(),IsMergedRow=false,RowSpan=1 }).ToList(); var rawElementNames=displayMetrics.Select(dm=>dm.DisplayName).Distinct().ToList(); var labelMap=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase); if(rawElementNames.Any()){ var parameterizedNames=string.Join(",",rawElementNames.Select((_,index)=>$"@p{index}")); var sqlQuery=$"SELECT RawElementName, ElementLabel FROM XBRLDataTypes WHERE RawElementName IN ({parameterizedNames})"; using(var connection=_context.Database.GetDbConnection()){ connection.Open(); using(var command=connection.CreateCommand()){ command.CommandText=sqlQuery; for(int i=0;i<rawElementNames.Count;i++){ var parameter=command.CreateParameter(); parameter.ParameterName=$"@p{i}"; parameter.Value=rawElementNames[i]; command.Parameters.Add(parameter); } using(var reader=command.ExecuteReader()){ while(reader.Read()){ var rawName=reader.GetString(0); var label=reader.IsDBNull(1)?rawName:reader.GetString(1); labelMap[rawName]=label; } } } } } foreach(var metric in displayMetrics){ if(labelMap.TryGetValue(metric.DisplayName,out var label)) metric.DisplayName=label; } orderedStatements=new List<StatementFinancialData>{ new StatementFinancialData{ StatementType="Enhanced Data",DisplayMetrics=displayMetrics,ScalingLabel="" } }; } else{ var financialDataRecordsLookup=financialDataRecords.ToDictionary(fd=>$"{fd.Year.Value}-{fd.Quarter}",fd=>fd); var financialDataElements=InitializeFinancialDataElements(financialDataRecords); PopulateFinancialDataElements(financialDataElements,financialDataRecordsLookup,recentReportPairs); var statementsDict=GroupFinancialDataByStatement(financialDataElements); orderedStatements=CreateOrderedStatements(statementsDict,recentReports); } var stockPrice=await _twelveDataService.GetStockPriceAsync(companySymbol); var formattedStockPrice=stockPrice.HasValue?$"${stockPrice.Value:F2}":"N/A"; var uniqueYears=recentReportPairs.Select(rp=>rp.Year).Distinct().OrderByDescending(y=>y).ToList(); var model=new StockDataViewModel{ CompanyName=companyName,CompanySymbol=companySymbol,FinancialYears=CreateReportPeriods(dataTypeForFetching,recentReportPairs),Statements=orderedStatements,StockPrice=formattedStockPrice,DataType=dataType,BaseType=baseType,SelectedYearFilter=yearFilter,UniqueYears=uniqueYears }; model.YearFilterOptions=new List<SelectListItem>{ new SelectListItem{ Value="all",Text="All Years" }, new SelectListItem{ Value="5",Text="Last 5 Years" }, new SelectListItem{ Value="3",Text="Last 3 Years" }, new SelectListItem{ Value="1",Text="Last Year" } }; _logger.LogInformation($"StockData: Successfully retrieved data for CompanyID = {companyId}, Symbol = {companySymbol}"); return View(model); } catch(Exception ex){ _logger.LogError(ex,$"StockData: An exception occurred while processing data for CompanyName = {companyName}, DataType = {dataType}"); return StatusCode(500,"An error occurred while processing the data."); } }
+
+        //public async Task<IActionResult> StockData(string companyName, string dataType = "annual",
+        //                                          string baseType = null, string yearFilter = "all")
+        //{
+        //    try
+        //    {
+        //        // Validate and sanitize dataType
+        //        // The allowed values are now "annual", "quarterly", and "enhanced"
+        //        if (dataType != "annual" && dataType != "quarterly" && dataType != "enhanced")
+        //        {
+        //            dataType = "annual";
+        //        }
 
                 // Determine baseType if not provided
                 if (baseType == null)
