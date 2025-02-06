@@ -175,5 +175,48 @@
     <script>
         window.currentCompanyName = '@currentCompanyName';
     </script>
+    <script>
+        document.getElementById("NavbarCompanySearch").addEventListener("input", function () {
+          const query = this.value.trim();
+          const suggestionsDiv = document.getElementById("navbarSuggestions");
+
+          // Clear suggestions if query is too short
+          if (query.length < 2) {
+            suggestionsDiv.innerHTML = "";
+            return;
+          }
+
+          // Fetch suggestions from the API endpoint
+          fetch("/api/companies/search?query=" + encodeURIComponent(query))
+            .then(response => {
+              if (!response.ok) {
+                throw new Error("Network response was not ok " + response.statusText);
+              }
+              return response.json();
+            })
+            .then(data => {
+              suggestionsDiv.innerHTML = "";
+              if (data.length === 0) {
+                suggestionsDiv.innerHTML = "<div class='list-group-item'>No results found</div>";
+              } else {
+                data.forEach(company => {
+                  const a = document.createElement("a");
+                  a.classList.add("list-group-item", "list-group-item-action");
+                  a.textContent = `${company.companyName} (${company.companySymbol})`;
+                  // When a suggestion is clicked, set the search box value and clear suggestions
+                  a.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    document.getElementById("NavbarCompanySearch").value = company.companyName;
+                    suggestionsDiv.innerHTML = "";
+                  });
+                  suggestionsDiv.appendChild(a);
+                });
+              }
+            })
+            .catch(error => {
+              console.error("Error fetching suggestions:", error);
+            });
+        });
+    </script>
 </body>
 </html>
