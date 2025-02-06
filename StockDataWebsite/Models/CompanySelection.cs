@@ -4,7 +4,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace StockDataWebsite.Models
 {
-     public class StockDataViewModel
+   
+        public class CompanyDto
+        {
+            public string CompanyName { get; set; } // Name of the company
+            public string CompanySymbol { get; set; } // Ticker symbol
+        }
+
+    public class StockDataViewModel
     {
         public string CompanyName { get; set; }
         public string CompanySymbol { get; set; }
