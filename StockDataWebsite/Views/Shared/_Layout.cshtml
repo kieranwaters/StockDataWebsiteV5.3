@@ -26,18 +26,18 @@
     <!-- Open Graph Defaults (Override in specific pages if needed) -->
     <meta property="og:title" content="@((string)ViewData["Title"] ?? "Alpha Stock Data")" />
     <meta property="og:description" content="@((string)ViewData["Description"] ?? "Default description for Alpha Stock Data.")" />
-    <meta property="og:url" content="https://www.alphastockdata.com/" />
+    <meta property="og:url" content="https://alphastockdata.com/" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://www.alphastockdata.com/images/default-og-image.jpg" />
+    <meta property="og:image" content="https://alphastockdata.com/images/default-og-image.jpg" />
 
     <!-- Twitter Card Defaults -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="@((string)ViewData["Title"] ?? "Alpha Stock Data")" />
     <meta name="twitter:description" content="@((string)ViewData["Description"] ?? "Default description for Alpha Stock Data.")" />
-    <meta name="twitter:image" content="https://www.alphastockdata.com/images/default-twitter-image.jpg" />
+    <meta name="twitter:image" content="https://alphastockdata.com/images/default-twitter-image.jpg" />
 
     <!-- Canonical URL Fallback -->
-    <link rel="canonical" href="https://www.alphastockdata.com/" />
+    <link rel="canonical" href="https://alphastockdata.com/" />
 
     <!-- Favicon (Using icon.jpg) -->
     <link rel="icon" type="image/jpeg" href="~/images/icon.jpg" />
@@ -51,8 +51,13 @@
           referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="~/css/site.bundle.min.css" asp-append-version="true" />
 
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-TL41QQ3KL4"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-ENjdO4Dr2bkBIFxQpeo...yourHashHere..."
+            crossorigin="anonymous"></script>
+
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}

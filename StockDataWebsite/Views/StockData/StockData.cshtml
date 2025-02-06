@@ -406,30 +406,191 @@
 </div>
 
 @section Scripts {
-    <script>
-        const allPeriods = @Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears)); // all period data
-        const uniqueYears = @Html.Raw(JsonConvert.SerializeObject(Model.UniqueYears)); // unique year values
-        const dataType = '@Model.DataType'; // report type from model
-        const baseType = '@Model.BaseType'; // base type if enhanced
-        let actualDataType;
-        if (dataType === "enhanced") {
-          actualDataType = (baseType === "quarterly") ? "quarterly" : "annual";
-        } else {
-          actualDataType = dataType;
-        }
-        const currentDisplayPeriods = [...allPeriods].reverse(); // display periods in reverse order
+    <!-- Ensure jQuery is loaded (if not already in your layout) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Your custom chart logic -->
+    <script src="~/js/chart.js"></script>
 
-        function hideAllNaRows() {
-          document.querySelectorAll('tbody tr').forEach(row => {
-            if (row.classList.contains('table-primary')) return;
-            const cells = Array.from(row.querySelectorAll('td:not(:first-child)'))
-              .filter(cell => cell.style.display !== 'none');
-            const allNa = cells.every(cell =>
-              cell.textContent.trim() === 'N/A' || cell.textContent.trim() === ''
-            );
-            row.style.display = allNa ? 'none' : '';
+    <script>
+        console.log("Custom script loaded");
+
+        // Data variables from the model.
+        const allPeriods = @Html.Raw(JsonConvert.SerializeObject(Model.FinancialYears));
+        const uniqueYears = @Html.Raw(JsonConvert.SerializeObject(Model.UniqueYears));
+        const dataType = '@Model.DataType';
+        const baseType = '@Model.BaseType';
+        let actualDataType = (dataType === "enhanced")
+          ? ((baseType === "quarterly") ? "quarterly" : "annual")
+          : dataType;
+        const currentDisplayPeriods = [...allPeriods].reverse();
+        // We'll store the chart instance in a global variable.
+        let metricChart = null;
+
+        // Delegated click handler for all .element-name elements.
+        $(document).on('click', '.element-name', function () {
+          console.log("Element clicked:", this);
+          $('#loadingIndicator').css('display', 'block');
+          $('#metricChart').css('display', 'none');
+
+          // Retrieve and log raw data attributes.
+          let rawLabels = $(this).attr('data-labels');
+          let rawValues = $(this).attr('data-values');
+          console.log("Raw data-labels:", rawLabels);
+          console.log("Raw data-values:", rawValues);
+
+          let labels, values;
+          try {
+            labels = JSON.parse(rawLabels).reverse();
+            values = JSON.parse(rawValues).reverse();
+            console.log("Parsed labels:", labels);
+            console.log("Parsed values:", values);
+          } catch (e) {
+            console.error("Error parsing chart data:", e);
+            $('#loadingIndicator').hide();
+            return;
+          }
+
+          let scalingLabel = ($(this).attr('data-scaling-label') || '').trim();
+          let metricName = ($(this).attr('data-metric') || '').trim();
+          console.log("Raw scalingLabel:", scalingLabel, "Raw metricName:", metricName);
+
+          // Clean helper function.
+          const cleanString = (str) => (str || '').replace(/\(null\)/gi, '').trim();
+          scalingLabel = cleanString(scalingLabel);
+          metricName = cleanString(metricName);
+          console.log("Cleaned scalingLabel:", scalingLabel, "Cleaned metricName:", metricName);
+
+          // Parse numeric values.
+          const parseNumeric = (val) => {
+            if (typeof val !== 'string') return val;
+            const num = parseFloat(val.replace(/,/g, ''));
+            return isNaN(num) ? val : num;
+          };
+          let numericValues = values.map(v => parseNumeric(v));
+          console.log("Numeric values:", numericValues);
+
+          // Auto-calculate scaling if needed.
+          if (!scalingLabel) {
+            const validNumbers = numericValues.filter(v => typeof v === 'number');
+            let scalingFactor = 0;
+            if (validNumbers.length > 0) {
+              const maxVal = Math.max(...validNumbers);
+              if (maxVal >= 1e9) { scalingFactor = 9; scalingLabel = "in Billions $"; }
+              else if (maxVal >= 1e6) { scalingFactor = 6; scalingLabel = "in Millions $"; }
+              else if (maxVal >= 1e3) { scalingFactor = 3; scalingLabel = "in Thousands $"; }
+              console.log("Calculated scalingFactor:", scalingFactor, "scalingLabel:", scalingLabel);
+            }
+            if (scalingFactor > 0) {
+              numericValues = numericValues.map(v => (typeof v === 'number') ? v / Math.pow(10, scalingFactor) : v);
+              console.log("Scaled numeric values:", numericValues);
+            }
+          }
+          const finalValues = numericValues.map(v => (typeof v === 'number' ? v : null));
+          console.log("Final values for chart:", finalValues);
+
+          const chartTitle = scalingLabel ? `${metricName} (${scalingLabel})` : metricName;
+          const yAxisTitle = scalingLabel ? `Amount (${scalingLabel})` : "Amount";
+
+          // Prepare chart data and options.
+          const chartData = {
+            labels: labels,
+            datasets: [{
+              label: metricName,
+              data: finalValues,
+              borderColor: 'rgba(75,192,192,1)',
+              backgroundColor: 'rgba(75,192,192,0.2)',
+              fill: true,
+              tension: 0.1
+            }]
+          };
+          const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: { display: true, text: chartTitle || 'Historical Data' },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    let lbl = context.dataset.label || '';
+                    if (lbl) lbl += ': ';
+                    if (context.parsed.y !== null) {
+                      lbl += context.parsed.y.toLocaleString();
+                      if (scalingLabel) lbl += ` ${scalingLabel}`;
+                    }
+                    return lbl;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: yAxisTitle },
+                ticks: { callback: (v) => v.toLocaleString() },
+                grid: { color: 'rgba(200,200,200,0.2)' }
+              },
+              x: {
+                title: { display: true, text: 'Period' },
+                grid: { color: 'rgba(200,200,200,0.2)' }
+              }
+            }
+          };
+
+          // Log before chart creation.
+          console.log("Creating chart with data:", chartData);
+
+          // Destroy previous chart instance if it exists and has a destroy function.
+          if (window.metricChart && typeof window.metricChart.destroy === 'function') {
+            window.metricChart.destroy();
+          }
+
+          // Create new chart.
+          const ctx = document.getElementById('metricChart').getContext('2d');
+          window.metricChart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: chartOptions
           });
-        }
+
+          $('#loadingIndicator').hide();
+          $('#metricChart').show();
+          new bootstrap.Modal(document.getElementById('graphModal')).show();
+          console.log("Chart rendered and modal shown.");
+        });
+
+        // Table header and year filter setup.
+        document.addEventListener('DOMContentLoaded', function () {
+          const headerRow = document.querySelector('thead tr');
+          headerRow.innerHTML = `
+            ${headerRow.children[0].outerHTML}
+            ${currentDisplayPeriods.map(p => `<th class="text-center">${p.DisplayName.replace("Report", "").trim()}</th>`).join('')}
+          `;
+          const yearFilter = document.getElementById('yearFilter');
+          yearFilter.value = (dataType === "quarterly") ? "3" : "all";
+          handleYearFilterChange(yearFilter.value);
+          yearFilter.addEventListener('change', function () {
+            handleYearFilterChange(this.value);
+          });
+          window.addEventListener('popstate', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const yearFilterValue = urlParams.get('yearFilter') || ((dataType === "quarterly") ? "3" : "all");
+            yearFilter.value = yearFilterValue;
+            handleYearFilterChange(yearFilterValue);
+          });
+          const tableWrapper = document.querySelector('.table-responsive');
+          const fixedScroll = document.querySelector('.fixed-scroll-container');
+          const dummyContent = document.querySelector('.dummy-scroll-content');
+          if (tableWrapper && fixedScroll) {
+            const syncScrollWidth = () => { dummyContent.style.width = (tableWrapper.scrollWidth + 20) + 'px'; };
+            syncScrollWidth();
+            window.addEventListener('resize', syncScrollWidth);
+            tableWrapper.addEventListener('scroll', () => { fixedScroll.scrollLeft = tableWrapper.scrollLeft; });
+            fixedScroll.addEventListener('scroll', () => { tableWrapper.scrollLeft = fixedScroll.scrollLeft; });
+          }
+          console.log("Table header and year filter initialized.");
+        });
 
         function handleYearFilterChange(selectedValue) {
           document.querySelectorAll('.report-type-link').forEach(link => {
@@ -442,29 +603,20 @@
           window.history.replaceState({}, "", newUrl);
           let numYears;
           switch (selectedValue) {
-            case '5':
-              numYears = 5;
-              break;
-            case '3':
-              numYears = 3;
-              break;
-            case '1':
-              numYears = 1;
-              break;
-            default:
-              numYears = uniqueYears.length;
+            case '5': numYears = 5; break;
+            case '3': numYears = 3; break;
+            case '1': numYears = 1; break;
+            default: numYears = uniqueYears.length;
           }
           const yearsToShow = uniqueYears.slice(0, numYears);
           let periodsToShow;
           if (actualDataType === "annual") {
             periodsToShow = yearsToShow.map(year => year.toString());
           } else {
-            periodsToShow = currentDisplayPeriods
-              .filter(p => {
-                const yr = parseInt(p.CompositeKey.split('-')[0]);
-                return yearsToShow.includes(yr);
-              })
-              .map(p => p.DisplayName);
+            periodsToShow = currentDisplayPeriods.filter(p => {
+              const yr = parseInt(p.CompositeKey.split('-')[0]);
+              return yearsToShow.includes(yr);
+            }).map(p => p.DisplayName);
           }
           const headerRow = document.querySelector('thead tr');
           const headers = headerRow.querySelectorAll('th:not(:first-child)');
@@ -493,54 +645,10 @@
           const dummyContent = document.querySelector('.dummy-scroll-content');
           const tableWrapper = document.querySelector('.table-responsive');
           dummyContent.style.width = (tableWrapper.scrollWidth + 20) + 'px';
-          hideAllNaRows();
+          console.log("Year filter changed to:", selectedValue);
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-          const headerRow = document.querySelector('thead tr');
-          headerRow.innerHTML = `
-            ${headerRow.children[0].outerHTML}
-            ${currentDisplayPeriods
-              .map(p => `<th class="text-center">${p.DisplayName.replace("Report", "").trim()}</th>`)
-              .join('')}
-          `;
-          const yearFilter = document.getElementById('yearFilter');
-          // Set default dropdown value based on report type.
-          if (dataType === "quarterly") {
-            yearFilter.value = "3"; // default 3 years for quarterly reports
-          } else if (dataType === "annual") {
-            yearFilter.value = "all"; // show all annual reports
-          }
-          handleYearFilterChange(yearFilter.value);
-          yearFilter.addEventListener('change', function () {
-            handleYearFilterChange(this.value);
-          });
-          window.addEventListener('popstate', function () {
-            const urlParams = new URLSearchParams(window.location.search);
-            const yearFilterValue = urlParams.get('yearFilter') ||
-              (dataType === "quarterly" ? "3" : "all");
-            yearFilter.value = yearFilterValue;
-            handleYearFilterChange(yearFilterValue);
-          });
-          const tableWrapperElement = document.querySelector('.table-responsive');
-          const fixedScroll = document.querySelector('.fixed-scroll-container');
-          const dummyContent = document.querySelector('.dummy-scroll-content');
-          if (tableWrapperElement && fixedScroll) {
-            const syncScrollWidth = () => {
-              dummyContent.style.width = (tableWrapperElement.scrollWidth + 20) + 'px';
-            };
-            syncScrollWidth();
-            window.addEventListener('resize', syncScrollWidth);
-            tableWrapperElement.addEventListener('scroll', () => {
-              fixedScroll.scrollLeft = tableWrapperElement.scrollLeft;
-            });
-            fixedScroll.addEventListener('scroll', () => {
-              tableWrapperElement.scrollLeft = fixedScroll.scrollLeft;
-            });
-          }
-        });
-
-        // Cache the table HTML using a key that depends on both the company symbol and report type.
+        // Cache the table HTML using a key based on company symbol and data type.
         (function () {
           const htmlCacheKey = 'financialTableHTML_' +
             encodeURIComponent('@Model.CompanySymbol') + '_' +
@@ -548,9 +656,12 @@
           document.addEventListener('DOMContentLoaded', () => {
             let cachedHtml = localStorage.getItem(htmlCacheKey);
             if (cachedHtml) {
-              console.log('HTML cache HIT -> Replacing table contents with cached HTML for', htmlCacheKey);
+              console.log('HTML cache HIT for', htmlCacheKey);
               let tableContainer = document.querySelector('.table-responsive');
-              if (tableContainer) { tableContainer.innerHTML = cachedHtml; }
+              if (tableContainer) {
+                tableContainer.innerHTML = cachedHtml;
+                console.log("Cached HTML inserted into table container.");
+              }
             } else {
               console.log('HTML cache MISS for', htmlCacheKey);
             }
@@ -558,16 +669,17 @@
               let tableContainer = document.querySelector('.table-responsive');
               if (tableContainer) {
                 localStorage.setItem(htmlCacheKey, tableContainer.innerHTML);
-                console.log('Saved current table HTML to cacheKey:', htmlCacheKey);
+                console.log('HTML cache updated for key:', htmlCacheKey);
               }
             }, 2000);
           });
         })();
 
+        // Financial data caching.
         (function () {
           const cacheKey = 'financialData_' + '@Model.CompanySymbol';
           const cacheExpiryKey = cacheKey + '_expiry';
-          const cacheDuration = 1000 * 60 * 5; // 5 minutes
+          const cacheDuration = 300000; // 5 minutes
           function fetchFinancialData() {
             let now = Date.now();
             let expiry = localStorage.getItem(cacheExpiryKey);
@@ -575,7 +687,7 @@
               let cached = localStorage.getItem(cacheKey);
               if (cached) {
                 try {
-                  console.log("Cache HIT for JSON:", cacheKey);
+                  console.log("Data cache HIT for", cacheKey);
                   let data = JSON.parse(cached);
                   processFinancialData(data);
                   return;
@@ -584,30 +696,31 @@
                 }
               }
             }
-            console.log("Cache MISS, fetching from server for JSON:", cacheKey);
+            console.log("Data cache MISS for", cacheKey);
             fetch('/api/financialdata?companySymbol=' + encodeURIComponent('@Model.CompanySymbol'))
               .then(response => {
-                if (!response.ok) { throw new Error('HTTP error, status = ' + response.status); }
+                if (!response.ok) throw new Error('HTTP error, status = ' + response.status);
                 return response.json();
               })
               .then(data => {
                 localStorage.setItem(cacheKey, JSON.stringify(data));
-                localStorage.setItem(cacheExpiryKey, (now + cacheDuration).toString());
+                localStorage.setItem(cacheExpiryKey, now + cacheDuration);
                 processFinancialData(data);
               })
-              .catch(error => {
-                console.error('Error fetching financial data:', error);
-              });
+              .catch(error => console.error('Error fetching financial data:', error));
           }
           function processFinancialData(data) {
-            console.log('Financial data:', data);
+            console.log('Processed financial data:', data);
           }
           document.addEventListener('DOMContentLoaded', fetchFinancialData);
         })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="~/js/chart.js"></script>
 }
+
+
+
+
+
 
 
 
