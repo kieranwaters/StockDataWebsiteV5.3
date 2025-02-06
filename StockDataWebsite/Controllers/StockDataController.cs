@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Data.SqlClient;
 namespace StockDataWebsite.Controllers
 {
     [ApiController] // Allows automatic model binding and simpler conventions
@@ -44,12 +45,238 @@ namespace StockDataWebsite.Controllers
         private readonly ApplicationDbContext _context;
         private readonly TwelveDataService _twelveDataService;
         private readonly ILogger<StockDataController> _logger; // Declare ILogger
-        public StockDataController(ApplicationDbContext context, TwelveDataService twelveDataService, ILogger<StockDataController> logger)
+        private readonly string _connectionString;
+
+        public StockDataController(
+    ApplicationDbContext context,
+    TwelveDataService twelveDataService,
+    ILogger<StockDataController> logger,
+    IConfiguration configuration)
         {
             _context = context;
             _twelveDataService = twelveDataService;
             _logger = logger;
+            _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
+
+        // Updated GetCompanyDetails method using direct SQL (instead of EF)
+        private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName)
+        {
+            if (string.IsNullOrWhiteSpace(companyName))
+                return (0, null);
+            var normalizedName = companyName.Trim().ToLower();
+            string sql = @"
+        SELECT TOP 1 CompanyID, CompanySymbol 
+        FROM CompaniesList 
+        WHERE (CompanyName IS NOT NULL 
+               AND LOWER(LTRIM(RTRIM(CompanyName))) = @NormalizedName)
+           OR (CompanySymbol IS NOT NULL 
+               AND LOWER(LTRIM(RTRIM(CompanySymbol))) = @NormalizedName)";
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                using (var command = new SqlCommand(sql, connection))
+                {
+                    command.Parameters.AddWithValue("@NormalizedName", normalizedName);
+                    connection.Open();
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            int companyId = reader.GetInt32(reader.GetOrdinal("CompanyID"));
+                            string companySymbol = reader.GetString(reader.GetOrdinal("CompanySymbol"));
+                            return (companyId, companySymbol);
+                        }
+                    }
+                }
+            }
+            return (0, null);
+        }
+        private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys, List<FinancialData> financialDataRecords, List<string> recentReports)
+     FetchAnnualReports(int companyId)
+        {
+            var recentYears = new List<int>();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                string sqlDistinct = @"
+            SELECT DISTINCT Year 
+            FROM FinancialData 
+            WHERE CompanyID = @CompanyID 
+              AND IsHtmlParsed = 1 
+              AND Year IS NOT NULL 
+              AND Quarter = 0 
+            ORDER BY Year DESC";
+                using (var command = new SqlCommand(sqlDistinct, connection))
+                {
+                    command.Parameters.AddWithValue("@CompanyID", companyId);
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            recentYears.Add(reader.GetInt32(0));
+                        }
+                    }
+                }
+            }
+            recentYears.Sort();
+            var recentReportPairs = recentYears.Select(y => (Year: y, Quarter: 0)).ToList();
+            var recentReports = recentYears.Select(y => $"AnnualReport {y}").ToList();
+            var recentReportKeys = recentReportPairs.Select(rp => $"{rp.Year}-{rp.Quarter}").ToList();
+            var financialDataRecords = new List<FinancialData>();
+
+            // If there are no keys, return early to avoid an empty IN clause.
+            if (!recentReportKeys.Any())
+            {
+                return (recentReportPairs, recentReportKeys, financialDataRecords, recentReports);
+            }
+
+            string inClause = string.Join(",", recentReportKeys.Select((key, index) => $"@key{index}"));
+            string sqlRecords = $@"
+        SELECT * FROM FinancialData 
+        WHERE CompanyID = @CompanyID 
+          AND IsHtmlParsed = 1 
+          AND Year IS NOT NULL 
+          AND (CAST(Year AS VARCHAR(10)) + '-' + CAST(Quarter AS VARCHAR(10))) 
+               IN ({inClause})";  // Removed extra closing parenthesis here
+
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                using (var command = new SqlCommand(sqlRecords, connection))
+                {
+                    command.Parameters.AddWithValue("@CompanyID", companyId);
+                    for (int i = 0; i < recentReportKeys.Count; i++)
+                    {
+                        command.Parameters.AddWithValue($"@key{i}", recentReportKeys[i]);
+                    }
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var record = new FinancialData
+                            {
+                                CompanyID = reader.GetInt32(reader.GetOrdinal("CompanyID")),
+                                Year = reader.IsDBNull(reader.GetOrdinal("Year"))
+                                    ? (int?)null
+                                    : reader.GetInt32(reader.GetOrdinal("Year")),
+                                Quarter = reader.IsDBNull(reader.GetOrdinal("Quarter"))
+                                    ? 0
+                                    : reader.GetInt32(reader.GetOrdinal("Quarter")),
+                                IsHtmlParsed = reader.GetBoolean(reader.GetOrdinal("IsHtmlParsed")),
+                                FinancialDataJson = reader.IsDBNull(reader.GetOrdinal("FinancialDataJson"))
+                                    ? null
+                                    : reader.GetString(reader.GetOrdinal("FinancialDataJson"))
+                            };
+                            financialDataRecords.Add(record);
+                        }
+                    }
+                }
+            }
+            financialDataRecords = HandleDuplicates(financialDataRecords);
+            return (recentReportPairs, recentReportKeys, financialDataRecords, recentReports);
+        }
+
+
+        // Updated FetchQuarterlyReports method using direct SQL queries
+        private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys, List<FinancialData> financialDataRecords, List<string> recentReports)
+    FetchQuarterlyReports(int companyId)
+        {
+            var quarterData = new List<(int Year, int Quarter, DateTime EndDate)>();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                string sqlQuarter = @"
+            SELECT DISTINCT CompanyID, Year, Quarter, EndDate 
+            FROM FinancialData 
+            WHERE CompanyID = @CompanyID 
+              AND IsHtmlParsed = 1 
+              AND Year IS NOT NULL 
+              AND Quarter >= 1 
+            ORDER BY Year DESC, Quarter DESC";
+                using (var command = new SqlCommand(sqlQuarter, connection))
+                {
+                    command.Parameters.AddWithValue("@CompanyID", companyId);
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int year = reader.GetInt32(reader.GetOrdinal("Year"));
+                            int quarter = reader.GetInt32(reader.GetOrdinal("Quarter"));
+                            DateTime endDate = reader.GetDateTime(reader.GetOrdinal("EndDate"));
+                            quarterData.Add((year, quarter, endDate));
+                        }
+                    }
+                }
+            }
+            var recentQuarterData = new List<(int Year, int Quarter)>();
+            var uniqueReports = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var q in quarterData)
+            {
+                string reportKey = $"Q{q.Quarter}Report {q.Year}";
+                if (!uniqueReports.Contains(reportKey))
+                {
+                    recentQuarterData.Add((q.Year, q.Quarter));
+                    uniqueReports.Add(reportKey);
+                }
+            }
+            recentQuarterData.Reverse();
+            var recentReports = recentQuarterData
+                .Select(rp => $"Q{rp.Quarter}Report {rp.Year}")
+                .ToList();
+            var recentReportKeys = recentQuarterData
+                .Select(rp => $"{rp.Year}-{rp.Quarter}")
+                .ToList();
+            var financialDataRecords = new List<FinancialData>();
+            if (!recentReportKeys.Any())
+            {
+                return (recentQuarterData, recentReportKeys, financialDataRecords, recentReports);
+            }
+            string inClause = string.Join(",", recentReportKeys.Select((key, index) => $"@key{index}"));
+            string sqlRecords = $@"
+        SELECT * FROM FinancialData 
+        WHERE CompanyID = @CompanyID 
+          AND IsHtmlParsed = 1 
+          AND Year IS NOT NULL 
+          AND (CAST(Year AS VARCHAR(10)) + '-' + CAST(Quarter AS VARCHAR(10))) 
+               IN ({inClause})"; // Removed the extra ')' here
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                using (var command = new SqlCommand(sqlRecords, connection))
+                {
+                    command.Parameters.AddWithValue("@CompanyID", companyId);
+                    for (int i = 0; i < recentReportKeys.Count; i++)
+                    {
+                        command.Parameters.AddWithValue($"@key{i}", recentReportKeys[i]);
+                    }
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var record = new FinancialData
+                            {
+                                CompanyID = reader.GetInt32(reader.GetOrdinal("CompanyID")),
+                                Year = reader.IsDBNull(reader.GetOrdinal("Year"))
+                                    ? (int?)null
+                                    : reader.GetInt32(reader.GetOrdinal("Year")),
+                                Quarter = reader.IsDBNull(reader.GetOrdinal("Quarter"))
+                                    ? 0
+                                    : reader.GetInt32(reader.GetOrdinal("Quarter")),
+                                IsHtmlParsed = reader.GetBoolean(reader.GetOrdinal("IsHtmlParsed")),
+                                FinancialDataJson = reader.IsDBNull(reader.GetOrdinal("FinancialDataJson"))
+                                    ? null
+                                    : reader.GetString(reader.GetOrdinal("FinancialDataJson"))
+                            };
+                            financialDataRecords.Add(record);
+                        }
+                    }
+                }
+            }
+            financialDataRecords = HandleDuplicates(financialDataRecords);
+            return (recentQuarterData, recentReportKeys, financialDataRecords, recentReports);
+        }
+
+
         public List<ReportPeriod> CreateReportPeriods(string dataType, List<(int Year, int Quarter)> recentReportPairs)
         {
             if (dataType == "annual")
@@ -69,15 +296,15 @@ namespace StockDataWebsite.Controllers
                 }).ToList();
             }
         }
-        private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName) 
-        { 
-            if (string.IsNullOrWhiteSpace(companyName)) 
-                return (0, null); 
-            var normalizedName = companyName.Trim().ToLower(); 
-            var company = _context.CompaniesList.FirstOrDefault(c => (c.CompanyName != null && c.CompanyName.Trim().ToLower() == normalizedName) 
-            || (c.CompanySymbol != null && c.CompanySymbol.Trim().ToLower() == normalizedName)); 
-            return company == null ? (0, null) : (company.CompanyID, company.CompanySymbol); 
-        }
+        //private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName) 
+        //{ 
+        //    if (string.IsNullOrWhiteSpace(companyName)) 
+        //        return (0, null); 
+        //    var normalizedName = companyName.Trim().ToLower(); 
+        //    var company = _context.CompaniesList.FirstOrDefault(c => (c.CompanyName != null && c.CompanyName.Trim().ToLower() == normalizedName) 
+        //    || (c.CompanySymbol != null && c.CompanySymbol.Trim().ToLower() == normalizedName)); 
+        //    return company == null ? (0, null) : (company.CompanyID, company.CompanySymbol); 
+        //}
         public async Task<IActionResult> StockData(string companyName, string dataType = "annual", string baseType = null, string yearFilter = "all")
         {
             try
@@ -231,111 +458,111 @@ namespace StockDataWebsite.Controllers
                 return StatusCode(500, "An error occurred while processing the data.");
             }
         }
-        private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys,
-     List<FinancialData> financialDataRecords, List<string> recentReports)
-FetchAnnualReports(int companyId)
-        {
-            // Previously used .Take(10) to limit data. Removed for full listing.
-            var recentYears = _context.FinancialData
-                .Where(fd => fd.CompanyID == companyId
-                             && fd.IsHtmlParsed
-                             && fd.Year.HasValue
-                             && fd.Quarter == 0)
-                .Select(fd => fd.Year.Value)
-                .Distinct()
-                .OrderByDescending(y => y)
-                .ToList();  // No more .Take(10)
+//        private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys,
+//     List<FinancialData> financialDataRecords, List<string> recentReports)
+//FetchAnnualReports(int companyId)
+//        {
+//            // Previously used .Take(10) to limit data. Removed for full listing.
+//            var recentYears = _context.FinancialData
+//                .Where(fd => fd.CompanyID == companyId
+//                             && fd.IsHtmlParsed
+//                             && fd.Year.HasValue
+//                             && fd.Quarter == 0)
+//                .Select(fd => fd.Year.Value)
+//                .Distinct()
+//                .OrderByDescending(y => y)
+//                .ToList();  // No more .Take(10)
 
-            // Reverse to get ascending order of years
-            recentYears.Reverse();
+//            // Reverse to get ascending order of years
+//            recentYears.Reverse();
 
-            // Create the (Year, Quarter=0) pairs for annual data
-            var recentReportPairs = recentYears
-                .Select(y => (Year: y, Quarter: 0))
-                .ToList();
+//            // Create the (Year, Quarter=0) pairs for annual data
+//            var recentReportPairs = recentYears
+//                .Select(y => (Year: y, Quarter: 0))
+//                .ToList();
 
-            // Build a human-readable label (e.g., "AnnualReport 2021")
-            var recentReports = recentYears
-                .Select(y => $"AnnualReport {y}")
-                .ToList();
+//            // Build a human-readable label (e.g., "AnnualReport 2021")
+//            var recentReports = recentYears
+//                .Select(y => $"AnnualReport {y}")
+//                .ToList();
 
-            // Convert (Year, Quarter) to a "YYYY-0" string key
-            var recentReportKeys = recentReportPairs
-                .Select(rp => $"{rp.Year}-{rp.Quarter}")
-                .ToList();
+//            // Convert (Year, Quarter) to a "YYYY-0" string key
+//            var recentReportKeys = recentReportPairs
+//                .Select(rp => $"{rp.Year}-{rp.Quarter}")
+//                .ToList();
 
-            // Fetch all FinancialData rows matching these year-quarter keys
-            var financialDataRecords = _context.FinancialData
-                .Where(fd => fd.CompanyID == companyId
-                             && fd.IsHtmlParsed
-                             && fd.Year.HasValue)
-                .Where(fd => recentReportKeys.Contains(fd.Year.Value.ToString() + "-" + fd.Quarter.ToString()))
-                .ToList();
+//            // Fetch all FinancialData rows matching these year-quarter keys
+//            var financialDataRecords = _context.FinancialData
+//                .Where(fd => fd.CompanyID == companyId
+//                             && fd.IsHtmlParsed
+//                             && fd.Year.HasValue)
+//                .Where(fd => recentReportKeys.Contains(fd.Year.Value.ToString() + "-" + fd.Quarter.ToString()))
+//                .ToList();
 
-            // Handle duplicates as before
-            financialDataRecords = HandleDuplicates(financialDataRecords);
+//            // Handle duplicates as before
+//            financialDataRecords = HandleDuplicates(financialDataRecords);
 
-            return (recentReportPairs, recentReportKeys, financialDataRecords, recentReports);
-        }
+//            return (recentReportPairs, recentReportKeys, financialDataRecords, recentReports);
+//        }
 
-        private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys,
-                 List<FinancialData> financialDataRecords, List<string> recentReports)
-            FetchQuarterlyReports(int companyId)
-        {
-            // Removed the old "desiredQuarterCount = 6" logic. We now retrieve *all* quarters.
-            var allQuarterData = _context.FinancialData
-                .Where(fd => fd.CompanyID == companyId
-                             && fd.IsHtmlParsed
-                             && fd.Year.HasValue
-                             && fd.Quarter >= 1)
-                .Select(fd => new { fd.CompanyID, fd.Year, fd.Quarter, fd.EndDate })
-                .Distinct()
-                .OrderByDescending(yq => yq.Year)
-                .ThenByDescending(yq => yq.Quarter)
-                .ToList();
+        //private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys,
+        //         List<FinancialData> financialDataRecords, List<string> recentReports)
+        //    FetchQuarterlyReports(int companyId)
+        //{
+        //    // Removed the old "desiredQuarterCount = 6" logic. We now retrieve *all* quarters.
+        //    var allQuarterData = _context.FinancialData
+        //        .Where(fd => fd.CompanyID == companyId
+        //                     && fd.IsHtmlParsed
+        //                     && fd.Year.HasValue
+        //                     && fd.Quarter >= 1)
+        //        .Select(fd => new { fd.CompanyID, fd.Year, fd.Quarter, fd.EndDate })
+        //        .Distinct()
+        //        .OrderByDescending(yq => yq.Year)
+        //        .ThenByDescending(yq => yq.Quarter)
+        //        .ToList();
 
-            // Instead of limiting to 6, we gather *all* of them
-            var recentQuarterData = new List<(int Year, int Quarter)>();
-            var uniqueQuarters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        //    // Instead of limiting to 6, we gather *all* of them
+        //    var recentQuarterData = new List<(int Year, int Quarter)>();
+        //    var uniqueQuarters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var yq in allQuarterData)
-            {
-                // Build a unique "Q{quarter}Report {year}" key
-                string reportKey = $"Q{yq.Quarter}Report {yq.Year}";
+        //    foreach (var yq in allQuarterData)
+        //    {
+        //        // Build a unique "Q{quarter}Report {year}" key
+        //        string reportKey = $"Q{yq.Quarter}Report {yq.Year}";
 
-                if (!uniqueQuarters.Contains(reportKey))
-                {
-                    recentQuarterData.Add((yq.Year.Value, yq.Quarter));
-                    uniqueQuarters.Add(reportKey);
-                }
-            }
+        //        if (!uniqueQuarters.Contains(reportKey))
+        //        {
+        //            recentQuarterData.Add((yq.Year.Value, yq.Quarter));
+        //            uniqueQuarters.Add(reportKey);
+        //        }
+        //    }
 
-            // Now we reverse to get them in ascending order
-            recentQuarterData.Reverse();
+        //    // Now we reverse to get them in ascending order
+        //    recentQuarterData.Reverse();
 
-            // Create the display labels (e.g., "Q1Report 2022")
-            var recentReports = recentQuarterData
-                .Select(rp => $"Q{rp.Quarter}Report {rp.Year}")
-                .ToList();
+        //    // Create the display labels (e.g., "Q1Report 2022")
+        //    var recentReports = recentQuarterData
+        //        .Select(rp => $"Q{rp.Quarter}Report {rp.Year}")
+        //        .ToList();
 
-            // Convert (Year, Quarter) to a "YYYY-Q" string key
-            var recentReportKeys = recentQuarterData
-                .Select(rp => $"{rp.Year}-{rp.Quarter}")
-                .ToList();
+        //    // Convert (Year, Quarter) to a "YYYY-Q" string key
+        //    var recentReportKeys = recentQuarterData
+        //        .Select(rp => $"{rp.Year}-{rp.Quarter}")
+        //        .ToList();
 
-            // Fetch all FinancialData rows matching these year-quarter keys
-            var financialDataRecords = _context.FinancialData
-                .Where(fd => fd.CompanyID == companyId
-                             && fd.IsHtmlParsed
-                             && fd.Year.HasValue)
-                .Where(fd => recentReportKeys.Contains(fd.Year.Value.ToString() + "-" + fd.Quarter.ToString()))
-                .ToList();
+        //    // Fetch all FinancialData rows matching these year-quarter keys
+        //    var financialDataRecords = _context.FinancialData
+        //        .Where(fd => fd.CompanyID == companyId
+        //                     && fd.IsHtmlParsed
+        //                     && fd.Year.HasValue)
+        //        .Where(fd => recentReportKeys.Contains(fd.Year.Value.ToString() + "-" + fd.Quarter.ToString()))
+        //        .ToList();
 
-            // Handle duplicates if necessary
-            financialDataRecords = HandleDuplicates(financialDataRecords);
+        //    // Handle duplicates if necessary
+        //    financialDataRecords = HandleDuplicates(financialDataRecords);
 
-            return (recentQuarterData, recentReportKeys, financialDataRecords, recentReports);
-        }
+        //    return (recentQuarterData, recentReportKeys, financialDataRecords, recentReports);
+        //}
 
 
         private Dictionary<string, List<string>> ExtractXbrlElements(Dictionary<string, FinancialData> financialDataRecordsLookup, List<(int Year, int Quarter)> recentReportPairs)

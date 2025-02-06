@@ -505,14 +505,20 @@
               .join('')}
           `;
           const yearFilter = document.getElementById('yearFilter');
-          if (dataType === "quarterly") { yearFilter.value = "3"; } // set default to 3 years when quarterly report is selected
+          // Set default dropdown value based on report type.
+          if (dataType === "quarterly") {
+            yearFilter.value = "3"; // default 3 years for quarterly reports
+          } else if (dataType === "annual") {
+            yearFilter.value = "all"; // show all annual reports
+          }
           handleYearFilterChange(yearFilter.value);
           yearFilter.addEventListener('change', function () {
             handleYearFilterChange(this.value);
           });
           window.addEventListener('popstate', function () {
             const urlParams = new URLSearchParams(window.location.search);
-            const yearFilterValue = urlParams.get('yearFilter') || 'all';
+            const yearFilterValue = urlParams.get('yearFilter') ||
+              (dataType === "quarterly" ? "3" : "all");
             yearFilter.value = yearFilterValue;
             handleYearFilterChange(yearFilterValue);
           });
@@ -533,10 +539,12 @@
             });
           }
         });
-    </script>
-    <script>
+
+        // Cache the table HTML using a key that depends on both the company symbol and report type.
         (function () {
-          const htmlCacheKey = 'financialTableHTML_' + encodeURIComponent('@Model.CompanySymbol') + '_' + encodeURIComponent('@Model.DataType'); // cache key for table HTML
+          const htmlCacheKey = 'financialTableHTML_' +
+            encodeURIComponent('@Model.CompanySymbol') + '_' +
+            encodeURIComponent(dataType);
           document.addEventListener('DOMContentLoaded', () => {
             let cachedHtml = localStorage.getItem(htmlCacheKey);
             if (cachedHtml) {
@@ -555,8 +563,7 @@
             }, 2000);
           });
         })();
-    </script>
-    <script>
+
         (function () {
           const cacheKey = 'financialData_' + '@Model.CompanySymbol';
           const cacheExpiryKey = cacheKey + '_expiry';
@@ -601,5 +608,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="~/js/chart.js"></script>
 }
+
 
 
