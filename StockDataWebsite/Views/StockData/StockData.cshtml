@@ -124,6 +124,67 @@
     <small> (@Model.CompanySymbol)</small>
 </h1>
 
+@{
+    // Compute the color for Daily Change.
+    string dailyChangeColor = "black";
+    if (Model.DailyChange.HasValue)
+    {
+        dailyChangeColor = Model.DailyChange.Value >= 0 ? "green" : "red";
+    }
+    // Compute Volume (value) based on StockPrice and Volume (shares).
+    decimal volumeValue = 0;
+    decimal displayVolume = 0;
+    string volumeUnit = "";
+    if (Model.Volume.HasValue && !string.IsNullOrEmpty(Model.StockPrice) && Model.StockPrice != "N/A")
+    {
+        var priceText = Model.StockPrice.Replace("$", "").Trim();
+        decimal stockPriceNum = 0;
+        if (decimal.TryParse(priceText, out stockPriceNum))
+        {
+            volumeValue = Model.Volume.Value * stockPriceNum;
+        }
+        displayVolume = volumeValue;
+        if (volumeValue >= 1000000000)
+        {
+            displayVolume = volumeValue / 1000000000;
+            volumeUnit = " Billion";
+        }
+        else if (volumeValue >= 1000000)
+        {
+            displayVolume = volumeValue / 1000000;
+            volumeUnit = " Million";
+        }
+    }
+}
+<p>
+    @if (!string.IsNullOrEmpty(Model.StockPrice))
+    {
+        <span>
+            <strong>Stock Price:</strong> <strong>@Model.StockPrice</strong>
+        </span>
+    }
+    @if (Model.DailyChange.HasValue)
+    {
+        <span style="margin-left:15px;">
+            <strong>Daily Change:</strong>
+            <span style="color:@dailyChangeColor;">
+                <strong>@Model.DailyChange.Value.ToString("N2")%</strong>
+            </span>
+        </span>
+    }
+    @if (volumeValue > 0)
+    {
+        <span style="margin-left:15px;">
+            <strong>Volume (value):</strong> <strong>$@(displayVolume.ToString("N2"))@volumeUnit</strong>
+        </span>
+    }
+    @if (Model.Volume.HasValue)
+    {
+        <span style="margin-left:15px;">
+            <strong>Volume (shares):</strong> <strong>@Model.Volume.Value.ToString("N0")</strong>
+        </span>
+    }
+</p>
 <p>
     Discover in-depth <strong>@Model.DataType</strong> financial reports, historical metrics,
     and the latest price for <strong>@Model.CompanyName</strong>

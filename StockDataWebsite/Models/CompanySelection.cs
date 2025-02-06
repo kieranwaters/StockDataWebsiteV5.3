@@ -18,7 +18,7 @@ namespace StockDataWebsite.Models
         public List<ReportPeriod> FinancialYears { get; set; }
         public string DataType { get; set; }
         public List<StatementFinancialData> Statements { get; set; }
-        public string StockPrice { get; set; }
+        public string? StockPrice { get; set; }
         public string BaseType { get; set; }
         public string SelectedYearFilter { get; set; }
         public List<SelectListItem> YearFilterOptions { get; set; } = new List<SelectListItem>
@@ -29,6 +29,8 @@ namespace StockDataWebsite.Models
         new SelectListItem { Value = "1", Text = "Last Year" },
     };
         public List<int> UniqueYears { get; set; }
+        public decimal? DailyChange { get; internal set; }
+        public long? Volume { get; internal set; }
     }
     public class FinancialData
     {

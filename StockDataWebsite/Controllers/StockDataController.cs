@@ -60,13 +60,13 @@ namespace StockDataWebsite.Controllers
         }
 
         // Updated GetCompanyDetails method using direct SQL (instead of EF)
-        private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName)
+        private (int CompanyId, string CompanySymbol, decimal? DBStockPrice, decimal? DBDailyChange, long? DBVolume) GetCompanyDetails(string companyName)
         {
             if (string.IsNullOrWhiteSpace(companyName))
-                return (0, null);
+                return (0, null, null, null, null);
             var normalizedName = companyName.Trim().ToLower();
             string sql = @"
-        SELECT TOP 1 CompanyID, CompanySymbol 
+        SELECT TOP 1 CompanyID, CompanySymbol, StockPrice, DailyChange, Volume
         FROM CompaniesList 
         WHERE (CompanyName IS NOT NULL 
                AND LOWER(LTRIM(RTRIM(CompanyName))) = @NormalizedName)
@@ -84,13 +84,54 @@ namespace StockDataWebsite.Controllers
                         {
                             int companyId = reader.GetInt32(reader.GetOrdinal("CompanyID"));
                             string companySymbol = reader.GetString(reader.GetOrdinal("CompanySymbol"));
-                            return (companyId, companySymbol);
+                            decimal? dbStockPrice = reader.IsDBNull(reader.GetOrdinal("StockPrice"))
+                                ? (decimal?)null
+                                : reader.GetDecimal(reader.GetOrdinal("StockPrice"));
+                            decimal? dbDailyChange = reader.IsDBNull(reader.GetOrdinal("DailyChange"))
+                                ? (decimal?)null
+                                : reader.GetDecimal(reader.GetOrdinal("DailyChange"));
+                            long? dbVolume = reader.IsDBNull(reader.GetOrdinal("Volume"))
+                                ? (long?)null
+                                : reader.GetInt64(reader.GetOrdinal("Volume"));
+                            return (companyId, companySymbol, dbStockPrice, dbDailyChange, dbVolume);
                         }
                     }
                 }
             }
-            return (0, null);
+            return (0, null, null, null, null);
         }
+
+        //private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName)
+        //{
+        //    if (string.IsNullOrWhiteSpace(companyName))
+        //        return (0, null);
+        //    var normalizedName = companyName.Trim().ToLower();
+        //    string sql = @"
+        //SELECT TOP 1 CompanyID, CompanySymbol 
+        //FROM CompaniesList 
+        //WHERE (CompanyName IS NOT NULL 
+        //       AND LOWER(LTRIM(RTRIM(CompanyName))) = @NormalizedName)
+        //   OR (CompanySymbol IS NOT NULL 
+        //       AND LOWER(LTRIM(RTRIM(CompanySymbol))) = @NormalizedName)";
+        //    using (var connection = new SqlConnection(_connectionString))
+        //    {
+        //        using (var command = new SqlCommand(sql, connection))
+        //        {
+        //            command.Parameters.AddWithValue("@NormalizedName", normalizedName);
+        //            connection.Open();
+        //            using (var reader = command.ExecuteReader())
+        //            {
+        //                if (reader.Read())
+        //                {
+        //                    int companyId = reader.GetInt32(reader.GetOrdinal("CompanyID"));
+        //                    string companySymbol = reader.GetString(reader.GetOrdinal("CompanySymbol"));
+        //                    return (companyId, companySymbol);
+        //                }
+        //            }
+        //        }
+        //    }
+        //    return (0, null);
+        //}
         private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys, List<FinancialData> financialDataRecords, List<string> recentReports)
      FetchAnnualReports(int companyId)
         {
@@ -317,13 +358,12 @@ namespace StockDataWebsite.Controllers
                     }
                 }
 
-                var (companyId, companySymbol) = GetCompanyDetails(companyName);
+                var (companyId, companySymbol, dbStockPrice, dbDailyChange, dbVolume) = GetCompanyDetails(companyName);
                 if (companyId == 0)
                 {
                     _logger.LogWarning($"StockData: Company not found for Name = {companyName}");
                     return BadRequest("Company not found.");
                 }
-
                 // If we're showing enhanced data, we still need to fetch reports as per the baseType (annual or quarterly)
                 var dataTypeForFetching = (dataType == "enhanced") ? baseType : dataType;
 
@@ -415,23 +455,27 @@ namespace StockDataWebsite.Controllers
                 }
 
                 var stockPrice = await _twelveDataService.GetStockPriceAsync(companySymbol);
-                var formattedStockPrice = stockPrice.HasValue ? $"${stockPrice.Value:F2}" : "N/A";
                 var uniqueYears = recentReportPairs.Select(rp => rp.Year).Distinct().OrderByDescending(y => y).ToList();
 
+                var formattedStockPrice = dbStockPrice.HasValue
+                    ? $"${dbStockPrice.Value:F2}"
+                    : "N/A";
 
-                // Add yearFilter to the model (ONLY NEW LINE)
                 var model = new StockDataViewModel
                 {
                     CompanyName = companyName,
                     CompanySymbol = companySymbol,
+                    StockPrice = formattedStockPrice,
+                    DailyChange = dbDailyChange,
+                    Volume = dbVolume,
                     FinancialYears = CreateReportPeriods(dataTypeForFetching, recentReportPairs),
                     Statements = orderedStatements,
-                    StockPrice = formattedStockPrice,
                     DataType = dataType,
                     BaseType = baseType,
                     SelectedYearFilter = yearFilter,
-                    UniqueYears = uniqueYears // Populate unique years
+                    UniqueYears = uniqueYears
                 };
+
                 model.YearFilterOptions = new List<SelectListItem>
 {
     new SelectListItem { Value = "all", Text = "All Years" },
@@ -1046,11 +1090,13 @@ namespace StockDataWebsite.Controllers
                 dataType = ValidateDataType(dataType);
 
                 // Step 2: Fetch Company Details
-                var (companyId, companySymbol) = GetCompanyDetails(companyName);
+                var (companyId, companySymbol, dbStockPrice, dbDailyChange, dbVolume) = GetCompanyDetails(companyName);
                 if (companyId == 0)
                 {
+                    _logger.LogWarning($"StockData: Company not found for Name = {companyName}");
                     return BadRequest("Company not found.");
                 }
+
 
                 // Step 3 & 4: Fetch Recent Reports and Financial Data Records
                 var (recentReportPairs, recentReportKeys, financialDataRecords, recentReports) = FetchRecentReportsAndData(companyId, dataType);
