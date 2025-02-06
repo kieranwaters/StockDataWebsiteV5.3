@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using StockDataWebsite.Controllers;
 using StockDataWebsite.Data;
 using StockScraperV3; // Reference to XBRLElementData
+using StockDataWebsite.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -296,15 +296,6 @@ namespace StockDataWebsite.Controllers
                 }).ToList();
             }
         }
-        //private (int CompanyId, string CompanySymbol) GetCompanyDetails(string companyName) 
-        //{ 
-        //    if (string.IsNullOrWhiteSpace(companyName)) 
-        //        return (0, null); 
-        //    var normalizedName = companyName.Trim().ToLower(); 
-        //    var company = _context.CompaniesList.FirstOrDefault(c => (c.CompanyName != null && c.CompanyName.Trim().ToLower() == normalizedName) 
-        //    || (c.CompanySymbol != null && c.CompanySymbol.Trim().ToLower() == normalizedName)); 
-        //    return company == null ? (0, null) : (company.CompanyID, company.CompanySymbol); 
-        //}
         public async Task<IActionResult> StockData(string companyName, string dataType = "annual", string baseType = null, string yearFilter = "all")
         {
             try
@@ -458,113 +449,6 @@ namespace StockDataWebsite.Controllers
                 return StatusCode(500, "An error occurred while processing the data.");
             }
         }
-//        private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys,
-//     List<FinancialData> financialDataRecords, List<string> recentReports)
-//FetchAnnualReports(int companyId)
-//        {
-//            // Previously used .Take(10) to limit data. Removed for full listing.
-//            var recentYears = _context.FinancialData
-//                .Where(fd => fd.CompanyID == companyId
-//                             && fd.IsHtmlParsed
-//                             && fd.Year.HasValue
-//                             && fd.Quarter == 0)
-//                .Select(fd => fd.Year.Value)
-//                .Distinct()
-//                .OrderByDescending(y => y)
-//                .ToList();  // No more .Take(10)
-
-//            // Reverse to get ascending order of years
-//            recentYears.Reverse();
-
-//            // Create the (Year, Quarter=0) pairs for annual data
-//            var recentReportPairs = recentYears
-//                .Select(y => (Year: y, Quarter: 0))
-//                .ToList();
-
-//            // Build a human-readable label (e.g., "AnnualReport 2021")
-//            var recentReports = recentYears
-//                .Select(y => $"AnnualReport {y}")
-//                .ToList();
-
-//            // Convert (Year, Quarter) to a "YYYY-0" string key
-//            var recentReportKeys = recentReportPairs
-//                .Select(rp => $"{rp.Year}-{rp.Quarter}")
-//                .ToList();
-
-//            // Fetch all FinancialData rows matching these year-quarter keys
-//            var financialDataRecords = _context.FinancialData
-//                .Where(fd => fd.CompanyID == companyId
-//                             && fd.IsHtmlParsed
-//                             && fd.Year.HasValue)
-//                .Where(fd => recentReportKeys.Contains(fd.Year.Value.ToString() + "-" + fd.Quarter.ToString()))
-//                .ToList();
-
-//            // Handle duplicates as before
-//            financialDataRecords = HandleDuplicates(financialDataRecords);
-
-//            return (recentReportPairs, recentReportKeys, financialDataRecords, recentReports);
-//        }
-
-        //private (List<(int Year, int Quarter)> recentReportPairs, List<string> recentReportKeys,
-        //         List<FinancialData> financialDataRecords, List<string> recentReports)
-        //    FetchQuarterlyReports(int companyId)
-        //{
-        //    // Removed the old "desiredQuarterCount = 6" logic. We now retrieve *all* quarters.
-        //    var allQuarterData = _context.FinancialData
-        //        .Where(fd => fd.CompanyID == companyId
-        //                     && fd.IsHtmlParsed
-        //                     && fd.Year.HasValue
-        //                     && fd.Quarter >= 1)
-        //        .Select(fd => new { fd.CompanyID, fd.Year, fd.Quarter, fd.EndDate })
-        //        .Distinct()
-        //        .OrderByDescending(yq => yq.Year)
-        //        .ThenByDescending(yq => yq.Quarter)
-        //        .ToList();
-
-        //    // Instead of limiting to 6, we gather *all* of them
-        //    var recentQuarterData = new List<(int Year, int Quarter)>();
-        //    var uniqueQuarters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        //    foreach (var yq in allQuarterData)
-        //    {
-        //        // Build a unique "Q{quarter}Report {year}" key
-        //        string reportKey = $"Q{yq.Quarter}Report {yq.Year}";
-
-        //        if (!uniqueQuarters.Contains(reportKey))
-        //        {
-        //            recentQuarterData.Add((yq.Year.Value, yq.Quarter));
-        //            uniqueQuarters.Add(reportKey);
-        //        }
-        //    }
-
-        //    // Now we reverse to get them in ascending order
-        //    recentQuarterData.Reverse();
-
-        //    // Create the display labels (e.g., "Q1Report 2022")
-        //    var recentReports = recentQuarterData
-        //        .Select(rp => $"Q{rp.Quarter}Report {rp.Year}")
-        //        .ToList();
-
-        //    // Convert (Year, Quarter) to a "YYYY-Q" string key
-        //    var recentReportKeys = recentQuarterData
-        //        .Select(rp => $"{rp.Year}-{rp.Quarter}")
-        //        .ToList();
-
-        //    // Fetch all FinancialData rows matching these year-quarter keys
-        //    var financialDataRecords = _context.FinancialData
-        //        .Where(fd => fd.CompanyID == companyId
-        //                     && fd.IsHtmlParsed
-        //                     && fd.Year.HasValue)
-        //        .Where(fd => recentReportKeys.Contains(fd.Year.Value.ToString() + "-" + fd.Quarter.ToString()))
-        //        .ToList();
-
-        //    // Handle duplicates if necessary
-        //    financialDataRecords = HandleDuplicates(financialDataRecords);
-
-        //    return (recentQuarterData, recentReportKeys, financialDataRecords, recentReports);
-        //}
-
-
         private Dictionary<string, List<string>> ExtractXbrlElements(Dictionary<string, FinancialData> financialDataRecordsLookup, List<(int Year, int Quarter)> recentReportPairs)
         {
             var xbrlElements = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);

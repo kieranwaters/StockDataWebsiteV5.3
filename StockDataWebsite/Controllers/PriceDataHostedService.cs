@@ -12,9 +12,9 @@
         {
             private readonly ILogger<PriceDataHostedService> _logger;
             private Timer _timer;
-            private readonly PriceData _priceData;
+            private readonly Models.PriceData _priceData;
 
-            public PriceDataHostedService(ILogger<PriceDataHostedService> logger, PriceData priceData)
+            public PriceDataHostedService(ILogger<PriceDataHostedService> logger, Models.PriceData priceData)
             {
                 _logger = logger;
                 _priceData = priceData;
