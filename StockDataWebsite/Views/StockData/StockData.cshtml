@@ -135,16 +135,16 @@
     <strong>Tip:</strong> You can click on an item name to view its historical graph.
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Financial Results</h2>
-    <div>
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3">
+    <h2 class="mb-2 mb-md-0">Financial Results</h2>
+    <div class="d-flex flex-wrap gap-2">
         <a href="/StockData/StockData?companyName=@UrlEncode(Model.CompanyName)&dataType=annual&yearFilter=@Model.SelectedYearFilter"
-           class="btn btn-secondary me-2 report-type-link @(Model.DataType == "annual" ? "active" : "")"
+           class="btn btn-secondary report-type-link @(Model.DataType == "annual" ? "active" : "")"
            title="View Annual Data for @Model.CompanyName">
             Annual Data
         </a>
         <a href="@Url.Action("StockData", "StockData", new { companyName = Model.CompanyName, dataType = "quarterly", yearFilter = Model.SelectedYearFilter })"
-           class="btn btn-secondary me-2 report-type-link @(Model.DataType == "quarterly" ? "active" : "")"
+           class="btn btn-secondary report-type-link @(Model.DataType == "quarterly" ? "active" : "")"
            title="View Quarterly Data for @Model.CompanyName">
             Quarterly Data
         </a>
@@ -166,7 +166,6 @@
         }
     </div>
 </div>
-
 <div class="table-controls-container">
     @Html.DropDownListFor(m => m.SelectedYearFilter, Model.YearFilterOptions,
             new { @class = "form-select", id = "yearFilter" })
